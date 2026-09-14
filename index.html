@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>議事録自動生成システム</title>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
+        body { font-family: sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h2 { font-size: 1.1em; border-bottom: 2px solid #0066cc; padding-bottom: 5px; margin-top: 0; }
         .form-row { display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -16,7 +16,13 @@
         button:hover { background: #004999; }
         .btn-success { background: #28a745; }
         .btn-success:hover { background: #218838; }
-        textarea.editor { width: 100%; height: 300px; font-family: monospace; resize: vertical; }
+        .workspace { display: flex; gap: 20px; }
+        .pane { flex: 1; display: flex; flex-direction: column; }
+        textarea.editor { height: 300px; font-family: monospace; resize: vertical; }
+        .chat-box { height: 245px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+        .chat-msg { margin-bottom: 8px; line-height: 1.4; }
+        .chat-msg.ai { color: #0066cc; }
+        .chat-msg.user { color: #333; text-align: right; }
     </style>
 </head>
 <body>
@@ -65,11 +71,27 @@
         <button onclick="startProcess()">🚀 議事録の生成・要約を開始する</button>
     </section>
 
-    <!-- ステップ2：要約テキスト編集 -->
+    <!-- ステップ2：AI対話修正 & プレビュー編集 -->
     <section>
-        <h2>2. 議事録テキストの確認・編集</h2>
-        <label>要約プレビュー・編集画面:</label>
-        <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます...</textarea>
+        <h2>2. AI対話による修正 & テキスト直接編集</h2>
+        <div class="workspace">
+            <!-- 左側：AI対話チャット -->
+            <div class="pane">
+                <label>Geminiチャット（AIと対話して修正）:</label>
+                <div id="chatHistory" class="chat-box">
+                    <div class="chat-msg ai"><b>[AI]:</b> 音声データを読み込むと、ここに初期要約を作成します。修正したい指示（例：「決定事項を簡潔にして」「常体表現に直して」など）をチャットで伝えてください。</div>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="chatInput" placeholder="例: 専門用語の補足を追加して">
+                    <button onclick="sendChatMessage()">送信</button>
+                </div>
+            </div>
+            <!-- 右側：直接編集エリア -->
+            <div class="pane">
+                <label>要約プレビュー・直接編集画面（細かい微調整用）:</label>
+                <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます。チャットでAIに直してもらうほか、ここを直接書き換えることもできます。</textarea>
+            </div>
+        </div>
     </section>
 
     <!-- ステップ3：フォーマット出力 -->
@@ -185,6 +207,27 @@
                 return;
             }
             alert('音声ファイルをアップロードし、Geminiによる文字起こし・要約処理を開始します（モック）。');
+        }
+
+        // チャット送信のシミュレーション
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const history = document.getElementById('chatHistory');
+            const editor = document.getElementById('summaryEditor');
+            if(!input.value) return;
+
+            // ユーザーの発言を追加
+            history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b> ${input.value}</div>`;
+            const userText = input.value;
+            input.value = '';
+            history.scrollTop = history.scrollHeight;
+
+            // AIの返答シミュレーション
+            setTimeout(() => {
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示「${userText}」に合わせて要約を修正しました。</div>`;
+                editor.value += `\n\n【追加修正 (${userText})】\n- ご指定の通りに内容を反映・ブラッシュアップしました。`;
+                history.scrollTop = history.scrollHeight;
+            }, 600);
         }
 
         function generateFinalOutput() {
