@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>議事録自動生成システム</title>
+    <style>
+        body { font-family: sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
+        section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { font-size: 1.1em; border-bottom: 2px solid #0066cc; padding-bottom: 5px; margin-top: 0; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 200px; }
+        label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; }
+        input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #0066cc; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #004999; }
+        .workspace { display: flex; gap: 20px; }
+        .editor-pane, .chat-pane { flex: 1; display: flex; flex-direction: column; }
+        textarea.editor { height: 250px; font-family: monospace; resize: vertical; }
+        .chat-box { height: 180px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+    <h1>議事録自動生成システム</h1>
+
+    <!-- ステップ1：音声ファイルとメタデータ -->
+    <section>
+        <h2>1. 録音データのアップロード & メタデータ入力</h2>
+        <div style="margin-bottom: 15px;">
+            <label>音声ファイル（PC標準機能などで録音したもの）:</label>
+            <input type="file" id="audioFile" accept="audio/*">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>日・時間:</label>
+                <input type="text" id="metaDateTime" value="2026-09-14 14:00">
+            </div>
+            <div class="form-group">
+                <label>場所:</label>
+                <input type="text" id="metaLocation" value="第1会議室">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>参加者:</label>
+                <input type="text" id="metaParticipants" value="山田, 鈴木, 佐藤">
+            </div>
+            <div class="form-group">
+                <label>書記:</label>
+                <input type="text" id="metaSecretary" value="柳井">
+            </div>
+        </div>
+        <button onclick="startProcess()">🚀 議事録の生成・要約を開始する</button>
+    </section>
+
+    <!-- ステップ2：要約編集 & チャット整理 -->
+    <section>
+        <h2>2. AI要約・テキスト編集 & チャット整理</h2>
+        <div class="workspace">
+            <!-- 編集ペイン -->
+            <div class="editor-pane">
+                <label>要約プレビュー・編集画面:</label>
+                <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます...</textarea>
+            </div>
+            <!-- チャットペイン -->
+            <div class="chat-pane">
+                <label>Geminiチャット整理:</label>
+                <div id="chatHistory" class="chat-box">
+                    <div><b>[AI]:</b> 音声データの読み込み待ちです。</div>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="chatInput" placeholder="例: 決定事項をもっと簡潔にして">
+                    <button onclick="sendChatMessage()">送信</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ステップ3：フォーマット出力 -->
+    <section>
+        <h2>3. 最終出力</h2>
+        <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータ（日時・場所・参加者・書記）およびテキストはいつでも修正可能です。</p>
+        <button onclick="generateFinalOutput()" style="background: #28a745;">📋 指定フォーマットで出力・コピー</button>
+    </section>
+
+    <script>
+        function startProcess() {
+            const file = document.getElementById('audioFile').files[0];
+            if (!file) {
+                alert('音声ファイルを選択してください。');
+                return;
+            }
+            alert('音声ファイルをアップロードし、Geminiによる文字起こし・要約処理を開始します（モック）。');
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const history = document.getElementById('chatHistory');
+            if(!input.value) return;
+
+            history.innerHTML += `<div><b>[ユーザー]:</b> ${input.value}</div>`;
+            setTimeout(() => {
+                history.innerHTML += `<div><b>[AI]:</b> 指示に合わせて修正を行いました。</div>`;
+                history.scrollTop = history.scrollHeight;
+            }, 500);
+            input.value = '';
+        }
+
+        function generateFinalOutput() {
+            const dt = document.getElementById('metaDateTime').value;
+            const loc = document.getElementById('metaLocation').value;
+            const parts = document.getElementById('metaParticipants').value;
+            const sec = document.getElementById('metaSecretary').value;
+            const content = document.getElementById('summaryEditor').value;
+
+            const finalOutput = `【日時】${dt}\n【場所】${loc}\n【参加者】${parts}\n【書記】${sec}\n\n${content}`;
+            
+            navigator.clipboard.writeText(finalOutput).then(() => {
+                alert('フォーマット済みの議事録をクリップボードにコピーしました！');
+            });
+        }
+    </script>
+
+</body>
+</html>
