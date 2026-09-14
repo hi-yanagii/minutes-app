@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>議事録自動生成システム</title>
     <style>
-        body { font-family: sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
+        body { font-family: sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         h2 { font-size: 1.1em; border-bottom: 2px solid #0066cc; padding-bottom: 5px; margin-top: 0; }
         .form-row { display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -16,10 +16,7 @@
         button:hover { background: #004999; }
         .btn-success { background: #28a745; }
         .btn-success:hover { background: #218838; }
-        .workspace { display: flex; gap: 20px; }
-        .editor-pane, .chat-pane { flex: 1; display: flex; flex-direction: column; }
-        textarea.editor { height: 280px; font-family: monospace; resize: vertical; }
-        .chat-box { height: 215px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+        textarea.editor { width: 100%; height: 300px; font-family: monospace; resize: vertical; }
     </style>
 </head>
 <body>
@@ -68,23 +65,11 @@
         <button onclick="startProcess()">🚀 議事録の生成・要約を開始する</button>
     </section>
 
-    <!-- ステップ2：要約編集 & チャット整理 -->
+    <!-- ステップ2：要約テキスト編集 -->
     <section>
-        <h2>2. AI要約・テキスト編集 & チャット整理</h2>
-        <div class="workspace">
-            <div class="editor-pane">
-                <label>要約プレビュー・編集画面:</label>
-                <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます...</textarea>
-            </div>
-            <div class="chat-pane">
-                <label>Geminiチャット整理:</label>
-                <div id="chatHistory" class="chat-box"></div>
-                <div style="display: flex; gap: 5px;">
-                    <input type="text" id="chatInput" placeholder="例: 決定事項をもっと簡潔にして">
-                    <button onclick="sendChatMessage()">送信</button>
-                </div>
-            </div>
-        </div>
+        <h2>2. 議事録テキストの確認・編集</h2>
+        <label>要約プレビュー・編集画面:</label>
+        <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます...</textarea>
     </section>
 
     <!-- ステップ3：フォーマット出力 -->
@@ -200,19 +185,6 @@
                 return;
             }
             alert('音声ファイルをアップロードし、Geminiによる文字起こし・要約処理を開始します（モック）。');
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('chatInput');
-            const history = document.getElementById('chatHistory');
-            if(!input.value) return;
-
-            history.innerHTML += `<div><b>[ユーザー]:</b> ${input.value}</div>`;
-            setTimeout(() => {
-                history.innerHTML += `<div><b>[AI]:</b> 指示に合わせて修正を行いました。</div>`;
-                history.scrollTop = history.scrollHeight;
-            }, 500);
-            input.value = '';
         }
 
         function generateFinalOutput() {
