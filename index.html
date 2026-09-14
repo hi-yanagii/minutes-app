@@ -46,7 +46,7 @@
                     </select>
                     <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">今の場所を登録</button>
                 </div>
-                <input type="text" id="metaLocation" value="第1会議室" placeholder="直接入力・修正も可能">
+                <input type="text" id="metaLocation" value="" placeholder="例: 第1会議室 または 直接入力">
             </div>
         </div>
         <div class="form-row">
@@ -58,7 +58,7 @@
                     </select>
                     <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">今のメンバーを登録</button>
                 </div>
-                <input type="text" id="metaParticipants" value="山田, 山根" placeholder="直接入力・修正も可能">
+                <input type="text" id="metaParticipants" value="" placeholder="例: 山田, 山根 または 直接入力">
             </div>
             <div class="form-group">
                 <label>書記:</label>
@@ -99,13 +99,11 @@
     <script>
         // --- ローカルストレージ管理：参加者 ---
         const PART_STORAGE_KEY = 'minutes_participant_presets';
-        const defaultParticipants = ["山田, 山根", "山田, 佐藤, 山根"];
 
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
             if (!saved) {
-                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(defaultParticipants));
-                return defaultParticipants;
+                return [];
             }
             return JSON.parse(saved);
         }
@@ -149,13 +147,11 @@
 
         // --- ローカルストレージ管理：場所 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
-        const defaultLocations = ["第1会議室", "第2会議室", "応接室", "オンライン"];
 
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
             if (!saved) {
-                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(defaultLocations));
-                return defaultLocations;
+                return [];
             }
             return JSON.parse(saved);
         }
