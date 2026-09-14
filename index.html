@@ -18,8 +18,8 @@
         .btn-success:hover { background: #218838; }
         .workspace { display: flex; gap: 20px; }
         .editor-pane, .chat-pane { flex: 1; display: flex; flex-direction: column; }
-        textarea.editor { height: 250px; font-family: monospace; resize: vertical; }
-        .chat-box { height: 180px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+        textarea.editor { height: 280px; font-family: monospace; resize: vertical; }
+        .chat-box { height: 215px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -78,9 +78,7 @@
             </div>
             <div class="chat-pane">
                 <label>Geminiチャット整理:</label>
-                <div id="chatHistory" class="chat-box">
-                    <div><b>[AI]:</b> 音声データの読み込み待ちです。</div>
-                </div>
+                <div id="chatHistory" class="chat-box"></div>
                 <div style="display: flex; gap: 5px;">
                     <input type="text" id="chatInput" placeholder="例: 決定事項をもっと簡潔にして">
                     <button onclick="sendChatMessage()">送信</button>
@@ -102,9 +100,7 @@
 
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
-            if (!saved) {
-                return [];
-            }
+            if (!saved) return [];
             return JSON.parse(saved);
         }
 
@@ -150,9 +146,7 @@
 
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
-            if (!saved) {
-                return [];
-            }
+            if (!saved) return [];
             return JSON.parse(saved);
         }
 
