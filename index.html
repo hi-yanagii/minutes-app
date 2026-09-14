@@ -11,9 +11,11 @@
         .form-group { flex: 1; min-width: 200px; }
         label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; }
         input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .participant-container { display: flex; gap: 8px; }
+        .input-container { display: flex; gap: 8px; margin-bottom: 5px; }
         button { background: #0066cc; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background: #004999; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
         .workspace { display: flex; gap: 20px; }
         .editor-pane, .chat-pane { flex: 1; display: flex; flex-direction: column; }
         textarea.editor { height: 250px; font-family: monospace; resize: vertical; }
@@ -37,23 +39,26 @@
                 <input type="text" id="metaDateTime" value="2026-09-15 14:00">
             </div>
             <div class="form-group">
-                <label>場所:</label>
-                <input type="text" id="metaLocation" value="第1会議室">
+                <label>場所（選択・追加・手入力）:</label>
+                <div class="input-container">
+                    <select id="locationPreset" onchange="applyLocationPreset()" style="flex: 1;">
+                        <option value="">-- 登録場所から選択 --</option>
+                    </select>
+                    <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">今の場所を登録</button>
+                </div>
+                <input type="text" id="metaLocation" value="第1会議室" placeholder="直接入力・修正も可能">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>参加者:</label>
-                <div class="participant-container">
-                    <!-- 登録パターンからの選択 -->
+                <label>参加者（選択・追加・手入力）:</label>
+                <div class="input-container">
                     <select id="participantPreset" onchange="applyParticipantPreset()" style="flex: 1;">
-                        <option value="">-- パターンから選択 --</option>
-                        <option value="山田, 山根">山田, 山根</option>
-                        <option value="山田, 佐藤, 山根">山田, 佐藤, 山根</option>
+                        <option value="">-- 登録パターンから選択 --</option>
                     </select>
+                    <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">今のメンバーを登録</button>
                 </div>
-                <!-- 自由に入力・修正できるテキストボックス -->
-                <input type="text" id="metaParticipants" value="山田, 山根" placeholder="直接入力・修正も可能" style="margin-top: 5px;">
+                <input type="text" id="metaParticipants" value="山田, 山根" placeholder="直接入力・修正も可能">
             </div>
             <div class="form-group">
                 <label>書記:</label>
@@ -67,12 +72,10 @@
     <section>
         <h2>2. AI要約・テキスト編集 & チャット整理</h2>
         <div class="workspace">
-            <!-- 編集ペイン -->
             <div class="editor-pane">
                 <label>要約プレビュー・編集画面:</label>
                 <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます...</textarea>
             </div>
-            <!-- チャットペイン -->
             <div class="chat-pane">
                 <label>Geminiチャット整理:</label>
                 <div id="chatHistory" class="chat-box">
@@ -90,11 +93,52 @@
     <section>
         <h2>3. 最終出力</h2>
         <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータ（日時・場所・参加者・書記）およびテキストはいつでも修正可能です。</p>
-        <button onclick="generateFinalOutput()" style="background: #28a745;">📋 指定フォーマットで出力・コピー</button>
+        <button onclick="generateFinalOutput()" class="btn-success">📋 指定フォーマットで出力・コピー</button>
     </section>
 
     <script>
-        // プルダウンで選択した内容を参加者入力欄に自動反映する関数
+        // --- ローカルストレージ管理：参加者 ---
+        const PART_STORAGE_KEY = 'minutes_participant_presets';
+        const defaultParticipants = ["山田, 山根", "山田, 佐藤, 山根"];
+
+        function getParticipants() {
+            const saved = localStorage.getItem(PART_STORAGE_KEY);
+            if (!saved) {
+                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(defaultParticipants));
+                return defaultParticipants;
+            }
+            return JSON.parse(saved);
+        }
+
+        function loadParticipantsToSelect() {
+            const select = document.getElementById('participantPreset');
+            const items = getParticipants();
+            select.innerHTML = '<option value="">-- 登録パターンから選択 --</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
+
+        function saveCurrentAsParticipantPreset() {
+            const currentVal = document.getElementById('metaParticipants').value.trim();
+            if (!currentVal) {
+                alert('参加者欄が空です。');
+                return;
+            }
+            const items = getParticipants();
+            if (!items.includes(currentVal)) {
+                items.push(currentVal);
+                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
+                loadParticipantsToSelect();
+                alert(`「${currentVal}」を参加者パターンとして記憶しました！`);
+            } else {
+                alert('このメンバー構成はすでに登録されています。');
+            }
+        }
+
         function applyParticipantPreset() {
             const select = document.getElementById('participantPreset');
             const input = document.getElementById('metaParticipants');
@@ -102,6 +146,62 @@
                 input.value = select.value;
             }
         }
+
+        // --- ローカルストレージ管理：場所 ---
+        const LOC_STORAGE_KEY = 'minutes_location_presets';
+        const defaultLocations = ["第1会議室", "第2会議室", "応接室", "オンライン"];
+
+        function getLocations() {
+            const saved = localStorage.getItem(LOC_STORAGE_KEY);
+            if (!saved) {
+                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(defaultLocations));
+                return defaultLocations;
+            }
+            return JSON.parse(saved);
+        }
+
+        function loadLocationsToSelect() {
+            const select = document.getElementById('locationPreset');
+            const items = getLocations();
+            select.innerHTML = '<option value="">-- 登録場所から選択 --</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
+
+        function saveCurrentAsLocationPreset() {
+            const currentVal = document.getElementById('metaLocation').value.trim();
+            if (!currentVal) {
+                alert('場所欄が空です。');
+                return;
+            }
+            const items = getLocations();
+            if (!items.includes(currentVal)) {
+                items.push(currentVal);
+                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
+                loadLocationsToSelect();
+                alert(`「${currentVal}」を場所として記憶しました！`);
+            } else {
+                alert('この場所はすでに登録されています。');
+            }
+        }
+
+        function applyLocationPreset() {
+            const select = document.getElementById('locationPreset');
+            const input = document.getElementById('metaLocation');
+            if (select.value) {
+                input.value = select.value;
+            }
+        }
+
+        // ページ読み込み時に反映
+        window.onload = function() {
+            loadParticipantsToSelect();
+            loadLocationsToSelect();
+        };
 
         function startProcess() {
             const file = document.getElementById('audioFile').files[0];
