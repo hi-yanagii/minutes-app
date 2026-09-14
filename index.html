@@ -10,7 +10,8 @@
         .form-row { display: flex; gap: 15px; margin-bottom: 10px; flex-wrap: wrap; }
         .form-group { flex: 1; min-width: 200px; }
         label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; }
-        input, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .participant-container { display: flex; gap: 8px; }
         button { background: #0066cc; color: #fff; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background: #004999; }
         .workspace { display: flex; gap: 20px; }
@@ -33,7 +34,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label>日・時間:</label>
-                <input type="text" id="metaDateTime" value="2026-09-14 14:00">
+                <input type="text" id="metaDateTime" value="2026-09-15 14:00">
             </div>
             <div class="form-group">
                 <label>場所:</label>
@@ -43,7 +44,16 @@
         <div class="form-row">
             <div class="form-group">
                 <label>参加者:</label>
-                <input type="text" id="metaParticipants" value="山田, 鈴木, 佐藤">
+                <div class="participant-container">
+                    <!-- 登録パターンからの選択 -->
+                    <select id="participantPreset" onchange="applyParticipantPreset()" style="flex: 1;">
+                        <option value="">-- パターンから選択 --</option>
+                        <option value="山田, 山根">山田, 山根</option>
+                        <option value="山田, 佐藤, 山根">山田, 佐藤, 山根</option>
+                    </select>
+                </div>
+                <!-- 自由に入力・修正できるテキストボックス -->
+                <input type="text" id="metaParticipants" value="山田, 山根" placeholder="直接入力・修正も可能" style="margin-top: 5px;">
             </div>
             <div class="form-group">
                 <label>書記:</label>
@@ -84,6 +94,15 @@
     </section>
 
     <script>
+        // プルダウンで選択した内容を参加者入力欄に自動反映する関数
+        function applyParticipantPreset() {
+            const select = document.getElementById('participantPreset');
+            const input = document.getElementById('metaParticipants');
+            if (select.value) {
+                input.value = select.value;
+            }
+        }
+
         function startProcess() {
             const file = document.getElementById('audioFile').files[0];
             if (!file) {
