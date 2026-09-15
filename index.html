@@ -30,17 +30,18 @@
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
         .chat-msg.ai { color: #0066cc; }
         .chat-msg.user { color: #333; text-align: right; }
+        
+        #statusMessage { font-size: 0.85em; font-weight: bold; margin-top: 5px; color: #0066cc; min-height: 1.2em; }
     </style>
 </head>
 <body>
 
     <h1>議事録自動生成システム</h1>
 
-    <!-- ステップ1：音声ファイルとメタデータ -->
     <section>
         <div class="section-header">
-            <h2>1. 録音データのアップロード & メタデータ入力</h2>
-            <button onclick="startProcess()" style="padding: 8px 16px; font-size: 0.9em;">🚀 議事録の生成・要約を開始する</button>
+            <h2>① 録音データのアップロード & メタデータ入力</h2>
+            <button id="processBtn" onclick="startProcess()" style="padding: 8px 16px; font-size: 0.9em;">🚀 議事録の生成・要約を開始する</button>
         </div>
 
         <div style="margin-bottom: 15px;">
@@ -51,10 +52,10 @@
         <div style="margin-bottom: 15px;">
             <label>音声ファイル（mp3, m4a, wav等）:</label>
             <input type="file" id="audioFile" accept="audio/*">
+            <div id="statusMessage"></div>
         </div>
         
         <div class="form-row">
-            <!-- 左側：日・時間 ＆ 参加者 -->
             <div class="form-group">
                 <div style="margin-bottom: 12px;">
                     <label>日・時間:</label>
@@ -72,7 +73,6 @@
                 </div>
             </div>
 
-            <!-- 右側：場所 ＆ 書記 -->
             <div class="form-group">
                 <div style="margin-bottom: 12px;">
                     <label>場所（選択・追加・手入力）:</label>
@@ -92,16 +92,13 @@
         </div>
     </section>
 
-    <!-- ステップ2：プレビュー編集 & AI対話修正 -->
     <section>
-        <h2>2. AI対話による修正 & テキスト直接編集</h2>
+        <h2>② AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
-            <!-- 左側：直接編集エリア -->
             <div class="pane">
                 <label>要約プレビュー・直接編集画面（細かい微調整用）:</label>
                 <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます。チャットでAIに直してもらうほか、ここを直接書き換えることもできます。</textarea>
             </div>
-            <!-- 右側：AI対話チャット -->
             <div class="pane">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
@@ -109,15 +106,14 @@
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 専門用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
-                    <button onclick="sendChatMessage()" style="height: 90px;">送信</button>
+                    <button id="sendBtn" onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ステップ3：フォーマット出力 -->
     <section>
-        <h2>3. 最終出力</h2>
+        <h2>③ 最終出力</h2>
         <div style="margin-bottom: 15px;">
             <label>出力フォーマットの登録（Wordファイルをアップロード）:</label>
             <div style="display: flex; gap: 10px; margin-bottom: 8px;">
@@ -135,7 +131,12 @@
     </section>
 
     <script>
-        // --- ローカルストレージ管理：参加者 ---
+        function showStatus(text, isError = false) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.style.color = isError ? '#d9534f' : '#0066cc';
+            statusEl.textContent = text;
+        }
+
         const PART_STORAGE_KEY = 'minutes_participant_presets';
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
@@ -171,7 +172,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // --- ローカルストレージ管理：場所 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
@@ -210,7 +210,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // --- ローカルストレージ管理：出力フォーマットテンプレート ---
         const FORMAT_STORAGE_KEY = 'minutes_format_templates';
         function getFormats() {
             const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
@@ -289,6 +288,22 @@
             });
         }
 
+        async function fetchWithRetry(url, options, retries = 3, delay = 3000) {
+            for (let i = 0; i < retries; i++) {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                if (data.error && (data.error.code === 429 || data.error.code === 503 || data.error.message.includes("high demand"))) {
+                    if (i < retries - 1) {
+                        showStatus(`サーバー混雑中のため再試行中... (${i+1}/${retries})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                }
+                return data;
+            }
+        }
+
         async function startProcess() {
             const apiKey = getApiKey();
             if (!apiKey) {
@@ -305,12 +320,19 @@
 
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
+            const processBtn = document.getElementById('processBtn');
+
+            processBtn.disabled = true;
+            processBtn.textContent = "⏳ 解析中...";
+            showStatus("音声ファイルを読み込み、Geminiへ送信しています...");
             editor.value = "音声ファイルを解析中... しばらくお待ちください。";
 
             try {
+                showStatus("音声をバイナリデータに変換中...");
                 const audioPart = await fileToGenerativePart(file);
                 
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                showStatus("Gemini APIで文字起こし・要約を実行中...");
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -326,8 +348,6 @@
                         ]
                     })
                 });
-
-                const data = await response.json();
                 
                 if (data.error) {
                     throw new Error(`APIエラー: ${data.error.message} (コード: ${data.error.code})`);
@@ -336,13 +356,18 @@
                     const resultText = data.candidates[0].content.parts[0].text;
                     editor.value = resultText;
                     history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声ファイルの解析と初期要約の作成が完了しました。</div>`;
+                    showStatus("✨ 議事録の生成が完了しました！");
                 } else {
                     throw new Error("予期せぬレスポンス形式です: " + JSON.stringify(data));
                 }
             } catch (error) {
                 console.error(error);
+                showStatus("❌ エラーが発生しました", true);
                 alert('API処理中にエラーが発生しました:\n' + error.message);
-                editor.value = "エラーが発生しました。詳細はF12キーのコンソールをご確認ください。";
+                editor.value = "エラーが発生しました。コンソールをご確認ください。";
+            } finally {
+                processBtn.disabled = false;
+                processBtn.textContent = "🚀 議事録の生成・要約を開始する";
             }
         }
 
@@ -353,6 +378,7 @@
             const input = document.getElementById('chatInput');
             const history = document.getElementById('chatHistory');
             const editor = document.getElementById('summaryEditor');
+            const sendBtn = document.getElementById('sendBtn');
             
             if(!input.value.trim()) return;
 
@@ -361,8 +387,11 @@
             input.value = '';
             history.scrollTop = history.scrollHeight;
 
+            sendBtn.disabled = true;
+            sendBtn.textContent = "送信中";
+
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -376,7 +405,6 @@
                     })
                 });
 
-                const data = await response.json();
                 if (data.error) {
                     throw new Error(`APIエラー: ${data.error.message}`);
                 }
@@ -391,6 +419,9 @@
             } catch (e) {
                 console.error(e);
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 修正処理でエラーが発生しました: ${e.message}</div>`;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = "送信";
             }
         }
 
