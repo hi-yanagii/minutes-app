@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録自動生成システム</title>
-    <!-- Word(.docx)読み込み用のmammoth.jsライブラリ -->
+    <!-- Word(.docx)読み込み用のmammoth.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- Word(.docx)生成・出力用のdocx.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -127,7 +129,10 @@
             </select>
         </div>
         <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータおよびテキストはいつでも修正可能です。</p>
-        <button onclick="generateFinalOutput()" class="btn-success">📋 指定フォーマットで出力・コピー</button>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="generateFinalOutput()" class="btn-success" style="flex: 1;">📋 テキストでクリップボードにコピー</button>
+            <button onclick="downloadWordDocument()" style="flex: 1; background: #d9534f;">💾 Wordファイル(.docx)としてダウンロード</button>
+        </div>
     </section>
 
     <script>
@@ -455,6 +460,68 @@
             navigator.clipboard.writeText(finalOutput).then(() => {
                 alert(`「${formatName}」のフォーマットで議事録をクリップボードにコピーしました！`);
             });
+        }
+
+        // --- Wordファイル(.docx)としてのダウンロード機能 ---
+        async function downloadWordDocument() {
+            const formatName = document.getElementById('formatTemplate').value;
+            if (!formatName) {
+                alert('出力フォーマットが選択されていません。フォーマットを選択またはアップロードしてください。');
+                return;
+            }
+
+            const dt = document.getElementById('metaDateTime').value;
+            const loc = document.getElementById('metaLocation').value;
+            const parts = document.getElementById('metaParticipants').value;
+            const sec = document.getElementById('metaSecretary').value;
+            const content = document.getElementById('summaryEditor').value;
+
+            const formats = getFormats();
+            let template = formats[formatName] || "";
+
+            let finalOutput = template
+                .replace(/{{日時}}|\[日時\]/g, dt)
+                .replace(/{{場所}}|\[場所\]/g, loc)
+                .replace(/{{参加者}}|\[参加者\]/g, parts)
+                .replace(/{{書記}}|\[書記\]/g, sec)
+                .replace(/{{本文}}|\[本文\]|{{要約}}|\[要約\]/g, content);
+
+            if (!template.includes(content)) {
+                finalOutput += `\n\n${content}`;
+            }
+
+            // docx.js を使ってWord文書オブジェクトを構築
+            const lines = finalOutput.split('\n');
+            const docChildren = lines.map(line => {
+                return new docx.Paragraph({
+                    children: [new docx.TextRun(line)],
+                    spacing: { after: 120 } // 段落後の余白
+                });
+            });
+
+            const doc = new docx.Document({
+                sections: [{
+                    properties: {},
+                    children: docChildren,
+                }],
+            });
+
+            try {
+                // Blobとしてファイル化してダウンロードさせる
+                const blob = await docx.Packer.toBlob(doc);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `議事録_${dt.replace(/[:\s]/g, '-')}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                alert('Wordファイル(.docx)のダウンロードが完了しました！');
+            } catch (err) {
+                console.error(err);
+                alert('Wordファイルの生成に失敗しました: ' + err.message);
+            }
         }
     </script>
 
