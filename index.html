@@ -2,11 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録自動生成システム</title>
+    <title>議事録くん！！</title>
     <!-- Word(.docx)読み込み用のmammoth.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-    <!-- Word(.docx)生成・出力用のdocx.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
+    <!-- Word(.docx)生成・出力用のdocx.js (安定版CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@7.3.0/build/index.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -38,7 +38,7 @@
 </head>
 <body>
 
-    <h1>議事録自動生成システム</h1>
+    <h1>議事録くん！！</h1>
 
     <section>
         <div class="section-header">
@@ -490,24 +490,28 @@
                 finalOutput += `\n\n${content}`;
             }
 
-            // docx.js を使ってWord文書オブジェクトを構築
-            const lines = finalOutput.split('\n');
-            const docChildren = lines.map(line => {
-                return new docx.Paragraph({
-                    children: [new docx.TextRun(line)],
-                    spacing: { after: 120 } // 段落後の余白
-                });
-            });
-
-            const doc = new docx.Document({
-                sections: [{
-                    properties: {},
-                    children: docChildren,
-                }],
-            });
-
             try {
-                // Blobとしてファイル化してダウンロードさせる
+                // docx 7.3.0 の正しい記法でドキュメントを構築
+                const paragraphs = finalOutput.split('\n').map(line => {
+                    return new docx.Paragraph({
+                        children: [
+                            new docx.TextRun({
+                                text: line,
+                                size: 22, // 11pt
+                                font: "BIZ UDPGothic"
+                            })
+                        ],
+                        spacing: { after: 120 }
+                    });
+                });
+
+                const doc = new docx.Document({
+                    sections: [{
+                        properties: {},
+                        children: paragraphs,
+                    }]
+                });
+
                 const blob = await docx.Packer.toBlob(doc);
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -517,7 +521,7 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('Wordファイル(.docx)のダウンロードが完了しました！');
+                alert('Wordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error(err);
                 alert('Wordファイルの生成に失敗しました: ' + err.message);
