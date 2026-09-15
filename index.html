@@ -17,10 +17,15 @@
         button:hover { background: #004999; }
         .btn-success { background: #28a745; }
         .btn-success:hover { background: #218838; }
+        
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
-        textarea.editor { height: 300px; font-family: monospace; resize: vertical; }
-        .chat-box { height: 245px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+        
+        /* 履歴枠＋入力窓の高さ合計に右側エディタの高さを一致させる設計 */
+        .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+        textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
+        textarea.editor { height: 354px; font-family: monospace; resize: vertical; } /* 250px + 10px(margin) + 90px = 354px */
+
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
         .chat-msg.ai { color: #0066cc; }
         .chat-msg.user { color: #333; text-align: right; }
@@ -89,11 +94,11 @@
             <div class="pane">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
-                    <div class="chat-msg ai"><b>[AI]:</b> 音声データを読み込むと、ここに初期要約を作成します。修正したい指示（例：「決定事項を簡潔にして」「常体表現に直して」など）をチャットで伝えてください。</div>
+                    <div class="chat-msg ai"><b>[AI]:</b> 音声データを読み込むと、ここに初期要約を作成します。修正したい指示をチャットで伝えてください。</div>
                 </div>
-                <div style="display: flex; gap: 5px;">
-                    <input type="text" id="chatInput" placeholder="例: 専門用語の補足を追加して">
-                    <button onclick="sendChatMessage()">送信</button>
+                <div style="display: flex; gap: 5px; align-items: flex-end;">
+                    <textarea id="chatInput" class="chat-input" placeholder="例: 専門用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
+                    <button onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
             </div>
             <!-- 右側：直接編集エリア -->
@@ -224,18 +229,18 @@
             const input = document.getElementById('chatInput');
             const history = document.getElementById('chatHistory');
             const editor = document.getElementById('summaryEditor');
-            if(!input.value) return;
+            if(!input.value.trim()) return;
 
             // ユーザーの発言を追加
-            history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b> ${input.value}</div>`;
+            history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b><br>${input.value.replace(/\n/g, '<br>')}</div>`;
             const userText = input.value;
             input.value = '';
             history.scrollTop = history.scrollHeight;
 
             // AIの返答シミュレーション
             setTimeout(() => {
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示「${userText}」に合わせて要約を修正しました。</div>`;
-                editor.value += `\n\n【追加修正 (${userText})】\n- ご指定の通りに内容を反映・ブラッシュアップしました。`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて要約を修正しました。</div>`;
+                editor.value += `\n\n【追加修正】\n- ご指定の通りに内容を反映しました。`;
                 history.scrollTop = history.scrollHeight;
             }, 600);
         }
