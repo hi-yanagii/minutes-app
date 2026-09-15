@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録自動生成システム</title>
+    <!-- Word(.docx)読み込み用のmammoth.jsライブラリ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -112,14 +114,16 @@
     <section>
         <h2>3. 最終出力</h2>
         <div style="margin-bottom: 15px;">
-            <label>出力フォーマット（テンプレート選択）:</label>
-            <div style="display: flex; gap: 10px;">
-                <select id="formatTemplate" style="flex: 1;">
-                    <option value="standard">【標準】日時・場所・参加者・書記 ＋ 本文</option>
-                    <option value="simple">【シンプル】要点・決定事項のみ</option>
-                    <option value="action">【タスク重視】決定事項・次回アクション付き</option>
-                </select>
+            <label>出力フォーマットの登録（Wordファイルをアップロード）:</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                <input type="file" id="formatDocFile" accept=".docx" style="flex: 1;">
+                <button type="button" class="btn-success" onclick="uploadFormatDocument()" style="white-space: nowrap;">Wordをフォーマットとして覚える</button>
             </div>
+            
+            <label>出力フォーマット選択（※デフォルト設定なし）:</label>
+            <select id="formatTemplate" style="flex: 1;">
+                <option value="">-- フォーマットを選択してください --</option>
+            </select>
         </div>
         <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータおよびテキストはいつでも修正可能です。</p>
         <button onclick="generateFinalOutput()" class="btn-success">📋 指定フォーマットで出力・コピー</button>
@@ -128,13 +132,10 @@
     <script>
         // --- ローカルストレージ管理：参加者 ---
         const PART_STORAGE_KEY = 'minutes_participant_presets';
-
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
-            if (!saved) return [];
-            return JSON.parse(saved);
+            return saved ? JSON.parse(saved) : [];
         }
-
         function loadParticipantsToSelect() {
             const select = document.getElementById('participantPreset');
             const items = getParticipants();
@@ -146,13 +147,9 @@
                 select.appendChild(option);
             });
         }
-
         function saveCurrentAsParticipantPreset() {
             const currentVal = document.getElementById('metaParticipants').value.trim();
-            if (!currentVal) {
-                alert('参加者欄が空です。');
-                return;
-            }
+            if (!currentVal) { alert('参加者欄が空です。'); return; }
             const items = getParticipants();
             if (!items.includes(currentVal)) {
                 items.push(currentVal);
@@ -163,24 +160,18 @@
                 alert('このメンバー構成はすでに登録されています。');
             }
         }
-
         function applyParticipantPreset() {
             const select = document.getElementById('participantPreset');
             const input = document.getElementById('metaParticipants');
-            if (select.value) {
-                input.value = select.value;
-            }
+            if (select.value) input.value = select.value;
         }
 
         // --- ローカルストレージ管理：場所 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
-
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
-            if (!saved) return [];
-            return JSON.parse(saved);
+            return saved ? JSON.parse(saved) : [];
         }
-
         function loadLocationsToSelect() {
             const select = document.getElementById('locationPreset');
             const items = getLocations();
@@ -192,7 +183,6 @@
                 select.appendChild(option);
             });
         }
-
         function saveCurrentAsLocationPreset() {
             const currentVal = document.getElementById('metaLocation').value.trim();
             if (!currentVal) {
@@ -209,19 +199,68 @@
                 alert('この場所はすでに登録されています。');
             }
         }
-
         function applyLocationPreset() {
             const select = document.getElementById('locationPreset');
             const input = document.getElementById('metaLocation');
-            if (select.value) {
-                input.value = select.value;
+            if (select.value) input.value = select.value;
+        }
+
+        // --- ローカルストレージ管理：アップロードされた出力フォーマットテンプレート ---
+        const FORMAT_STORAGE_KEY = 'minutes_format_templates';
+        function getFormats() {
+            const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {};
+        }
+        function loadFormatsToSelect() {
+            const select = document.getElementById('formatTemplate');
+            const formats = getFormats();
+            select.innerHTML = '<option value="">-- フォーマットを選択してください --</option>';
+            Object.keys(formats).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = `【カスタム】 ${name}`;
+                select.appendChild(option);
+            });
+        }
+
+        // Wordファイル(.docx)を読み込んでフォーマットとして登録
+        function uploadFormatDocument() {
+            const fileInput = document.getElementById('formatDocFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('登録するWordファイル(.docx)を選択してください。');
+                return;
             }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const arrayBuffer = event.target.result;
+                mammoth.extractRawText({arrayBuffer: arrayBuffer})
+                    .then(function(result) {
+                        const templateText = result.value; // Word内のテキスト
+                        const formatName = file.name.replace(/\.[^/.]+$/, ""); // 拡張子を除いたファイル名
+
+                        const formats = getFormats();
+                        formats[formatName] = templateText;
+                        localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
+
+                        loadFormatsToSelect();
+                        document.getElementById('formatTemplate').value = formatName;
+                        alert(`Wordファイル「${file.name}」をフォーマットとして記憶しました！`);
+                        fileInput.value = '';
+                    })
+                    .catch(function(err) {
+                        alert('Wordファイルの読み込みに失敗しました: ' + err);
+                    });
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         // ページ読み込み時に反映
         window.onload = function() {
             loadParticipantsToSelect();
             loadLocationsToSelect();
+            loadFormatsToSelect();
         };
 
         function startProcess() {
@@ -240,13 +279,11 @@
             const editor = document.getElementById('summaryEditor');
             if(!input.value.trim()) return;
 
-            // ユーザーの発言を追加
             history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b><br>${input.value.replace(/\n/g, '<br>')}</div>`;
             const userText = input.value;
             input.value = '';
             history.scrollTop = history.scrollHeight;
 
-            // AIの返答シミュレーション
             setTimeout(() => {
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて要約を修正しました。</div>`;
                 editor.value += `\n\n【追加修正】\n- ご指定の通りに内容を反映しました。`;
@@ -255,26 +292,36 @@
         }
 
         function generateFinalOutput() {
+            const formatName = document.getElementById('formatTemplate').value;
+            if (!formatName) {
+                alert('出力フォーマットが選択されていません。フォーマットを選択またはアップロードしてください。');
+                return;
+            }
+
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
             const parts = document.getElementById('metaParticipants').value;
             const sec = document.getElementById('metaSecretary').value;
             const content = document.getElementById('summaryEditor').value;
-            const templateType = document.getElementById('formatTemplate').value;
 
-            let finalOutput = "";
+            const formats = getFormats();
+            let template = formats[formatName] || "";
 
-            // テンプレートごとの組み立て
-            if (templateType === "standard") {
-                finalOutput = `【日時】${dt}\n【場所】${loc}\n【参加者】${parts}\n【書記】${sec}\n\n${content}`;
-            } else if (templateType === "simple") {
-                finalOutput = `■ 会議概要\n日時: ${dt} / 場所: ${loc}\n\n■ 決定事項・要点\n${content}`;
-            } else if (templateType === "action") {
-                finalOutput = `【日時】${dt} 【場所】${loc}\n【参加者】${parts}\n\n■ 議事要約\n${content}\n\n■ 次回アクション\n- `;
+            // テンプレート内のキーワードを実際の入力値に置換（プレースホルダーの自動置き換え）
+            let finalOutput = template
+                .replace(/{{日時}}|\[日時\]/g, dt)
+                .replace(/{{場所}}|\[場所\]/g, loc)
+                .replace(/{{参加者}}|\[参加者\]/g, parts)
+                .replace(/{{書記}}|\[書記\]/g, sec)
+                .replace(/{{本文}}|\[本文\]|{{要約}}|\[要約\]/g, content);
+
+            // もしプレースホルダーが見当たらなくても、最後に本文を結合するなどのフォールバック
+            if (!template.includes(content)) {
+                finalOutput += `\n\n${content}`;
             }
             
             navigator.clipboard.writeText(finalOutput).then(() => {
-                alert('選択したフォーマットで議事録をクリップボードにコピーしました！');
+                alert(`「${formatName}」のフォーマットで議事録をクリップボードにコピーしました！`);
             });
         }
     </script>
