@@ -21,11 +21,8 @@
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
         
-        /* 左右の高さを揃えるためのコンテナ調整 */
         .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
-        
-        /* 左側のエディタ高さを「チャット枠(250) + 隙間(10) + 入力窓(90) = 350px」に固定して底面を揃える */
         textarea.editor { height: 350px; font-family: monospace; resize: vertical; }
 
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
@@ -114,7 +111,17 @@
     <!-- ステップ3：フォーマット出力 -->
     <section>
         <h2>3. 最終出力</h2>
-        <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータ（日時・場所・参加者・書記）およびテキストはいつでも修正可能です。</p>
+        <div style="margin-bottom: 15px;">
+            <label>出力フォーマット（テンプレート選択）:</label>
+            <div style="display: flex; gap: 10px;">
+                <select id="formatTemplate" style="flex: 1;">
+                    <option value="standard">【標準】日時・場所・参加者・書記 ＋ 本文</option>
+                    <option value="simple">【シンプル】要点・決定事項のみ</option>
+                    <option value="action">【タスク重視】決定事項・次回アクション付き</option>
+                </select>
+            </div>
+        </div>
+        <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータおよびテキストはいつでも修正可能です。</p>
         <button onclick="generateFinalOutput()" class="btn-success">📋 指定フォーマットで出力・コピー</button>
     </section>
 
@@ -253,11 +260,21 @@
             const parts = document.getElementById('metaParticipants').value;
             const sec = document.getElementById('metaSecretary').value;
             const content = document.getElementById('summaryEditor').value;
+            const templateType = document.getElementById('formatTemplate').value;
 
-            const finalOutput = `【日時】${dt}\n【場所】${loc}\n【参加者】${parts}\n【書記】${sec}\n\n${content}`;
+            let finalOutput = "";
+
+            // テンプレートごとの組み立て
+            if (templateType === "standard") {
+                finalOutput = `【日時】${dt}\n【場所】${loc}\n【参加者】${parts}\n【書記】${sec}\n\n${content}`;
+            } else if (templateType === "simple") {
+                finalOutput = `■ 会議概要\n日時: ${dt} / 場所: ${loc}\n\n■ 決定事項・要点\n${content}`;
+            } else if (templateType === "action") {
+                finalOutput = `【日時】${dt} 【場所】${loc}\n【参加者】${parts}\n\n■ 議事要約\n${content}\n\n■ 次回アクション\n- `;
+            }
             
             navigator.clipboard.writeText(finalOutput).then(() => {
-                alert('フォーマット済みの議事録をクリップボードにコピーしました！');
+                alert('選択したフォーマットで議事録をクリップボードにコピーしました！');
             });
         }
     </script>
