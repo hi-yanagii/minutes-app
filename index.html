@@ -19,12 +19,14 @@
         .btn-success:hover { background: #218838; }
         
         .workspace { display: flex; gap: 20px; }
-        .pane { flex: 1; display: flex; flex-direction: column; }
+        /* 左右の幅の比率を調整（右側を少し大きく） */
+        .pane-left { flex: 1; display: flex; flex-direction: column; }
+        .pane-right { flex: 1.2; display: flex; flex-direction: column; }
         
-        /* 履歴枠＋入力窓の高さ合計に右側エディタの高さを一致させる設計 */
         .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
-        textarea.editor { height: 354px; font-family: monospace; resize: vertical; } /* 250px + 10px(margin) + 90px = 354px */
+        /* チャット枠(250) + 隙間(10) + 入力窓(90) = 合計350pxに右側エディタの高さを完全一致 */
+        textarea.editor { height: 350px; font-family: monospace; resize: vertical; }
 
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
         .chat-msg.ai { color: #0066cc; }
@@ -91,7 +93,7 @@
         <h2>2. AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
             <!-- 左側：AI対話チャット -->
-            <div class="pane">
+            <div class="pane-left">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
                     <div class="chat-msg ai"><b>[AI]:</b> 音声データを読み込むと、ここに初期要約を作成します。修正したい指示をチャットで伝えてください。</div>
@@ -102,7 +104,7 @@
                 </div>
             </div>
             <!-- 右側：直接編集エリア -->
-            <div class="pane">
+            <div class="pane-right">
                 <label>要約プレビュー・直接編集画面（細かい微調整用）:</label>
                 <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます。チャットでAIに直してもらうほか、ここを直接書き換えることもできます。</textarea>
             </div>
