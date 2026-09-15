@@ -21,9 +21,11 @@
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
         
+        /* 左右の高さを揃えるためのコンテナ調整 */
         .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
-        /* チャット枠(250) + 隙間(10) + 入力窓(90) = 合計350pxにエディタの高さを完全一致 */
+        
+        /* 左側のエディタ高さを「チャット枠(250) + 隙間(10) + 入力窓(90) = 350px」に固定して底面を揃える */
         textarea.editor { height: 350px; font-family: monospace; resize: vertical; }
 
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
@@ -86,7 +88,7 @@
         </div>
     </section>
 
-    <!-- ステップ2：プレビュー編集 & AI対話修正（左右入れ替え） -->
+    <!-- ステップ2：プレビュー編集 & AI対話修正 -->
     <section>
         <h2>2. AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
