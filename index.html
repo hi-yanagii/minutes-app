@@ -32,7 +32,15 @@
         
         .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
-        textarea.editor { height: 350px; font-family: monospace; resize: vertical; }
+        
+        /* 枠の幅を全角46文字分（等幅フォント換算で約48ch）に設定 */
+        textarea.editor { 
+            height: 350px; 
+            font-family: monospace; 
+            resize: vertical; 
+            width: 48ch; 
+            box-sizing: content-box; 
+        }
 
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
         .chat-msg.ai { color: #0066cc; }
@@ -107,7 +115,7 @@
         <h2>② AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
             <div class="pane">
-                <label>テキスト・要約プレビュー（直接編集可能）:</label>
+                <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
                 <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
             </div>
             <div class="pane">
@@ -366,7 +374,7 @@
             }
         }
 
-        // --- 5ステップ一気通貫連続実行（46文字整形含む） ---
+        // --- 5ステップ一気通貫連続実行（gemini-3.6-flash使用・全議案対応・46文字整形） ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -392,7 +400,7 @@
                         contents: [{
                             parts: [
                                 audioPart,
-                                { text: "【指示】この音声データの特性を解析し、発言内容を正確なテキスト文字列（文字起こし）に変換してください。" }
+                                { text: "【指示】この音声データの特性を解析し、冒頭から結びまで発言内容を一切省略せず、すべての発言を正確なテキスト文字列（文字起こし）に変換してください。" }
                             ]
                         }]
                     })
@@ -400,28 +408,28 @@
                 if (data1.error) throw new Error(data1.error.message);
                 const rawText = data1.candidates[0].content.parts[0].text;
 
-                // 3. 要約
-                showStatus("3. 要約処理を実行中...");
+                // 3. 要約（全議案を網羅する指示）
+                showStatus("3. 全議案の要約処理を実行中...");
                 const data2 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下のテキスト全体の要点を抽出してください。\n\n${rawText}` }]
+                            parts: [{ text: `以下のテキストデータには複数の議案（議題）が含まれています。途中で省略せず、すべての議案について漏れなく要点を抽出してください。\n\n${rawText}` }]
                         }]
                     })
                 });
                 if (data2.error) throw new Error(data2.error.message);
                 const summaryText = data2.candidates[0].content.parts[0].text;
 
-                // 5. 議事録に起こす（名詞化・体現止め・常体表現・Q&A形式）
-                showStatus("5. ビジネス用議事録形式（Q&A含む）に校正中...");
+                // 5. 議事録に起こす（名詞化・体現止め・常体表現・全議案・Q&A形式）
+                showStatus("5. ビジネス用議事録形式（全議案・Q&A含む）に校正中...");
                 const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の内容をビジネス用の議事録形式に校正してください。\nルール：\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 会議内でやり取りされた主要な質疑応答を「【質疑応答】」または「Q. / A.」形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
+                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 途中で省略せず、含まれているすべての議案（議題）を漏れなく「議案1」「議案2」「議案3」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を「【質疑応答】」または「Q. / A.」形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
                         }]
                     })
                 });
@@ -432,8 +440,8 @@
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声から46文字単位の整形を含む議事録への一連の処理が完了しました。</div>`;
-                showStatus("✨ 議事録の生成・校正が完了しました！");
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 全ての議案の網羅および46文字単位の整形を含む一連の処理が完了しました。</div>`;
+                showStatus("✨ 全議案の議事録の生成・校正が完了しました！");
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -464,7 +472,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、全議案を省略せずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
                         }]
                     })
                 });
