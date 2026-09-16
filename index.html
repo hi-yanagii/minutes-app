@@ -16,7 +16,6 @@
         label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; }
         input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         
-        /* 横並びコンテナの共通化と幅調整 */
         .input-container { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
         .input-container select { flex: 1; margin: 0; }
         .input-container button { white-space: nowrap; flex-shrink: 0; }
@@ -350,7 +349,7 @@
             }
         }
 
-        // --- 一気通貫の連続実行処理（内部でステップ1〜5を自動分割実行して負荷を軽減） ---
+        // --- 5ステップ一気通貫連続実行 ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -366,8 +365,8 @@
             processBtn.textContent = "⏳ 処理中...";
 
             try {
-                // 1 & 2. 音声解析・テキスト化
-                showStatus("1. 音声データを解析・テキスト化中...");
+                // 1. 音声入力分析 & 2. テキスト化
+                showStatus("1-2. 音声入力分析・テキスト化中...");
                 const audioPart = await fileToGenerativePart(file);
                 const data1 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -398,7 +397,7 @@
                 if (data2.error) throw new Error(data2.error.message);
                 const summaryText = data2.candidates[0].content.parts[0].text;
 
-                // 5. 議事録形式に校正
+                // 5. 議事録に起こす（名詞化・体現止め・常体表現）
                 showStatus("5. ビジネス用議事録形式に校正中...");
                 const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -503,6 +502,10 @@
                 const doc = new window.docxtemplater(zip, {
                     paragraphLoop: true,
                     linebreaks: true,
+                    delimiters: {
+                        start: '{{',
+                        end: '}}'
+                    }
                 });
 
                 doc.render({
