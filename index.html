@@ -20,6 +20,8 @@
         button:hover { background: #004999; }
         .btn-success { background: #28a745; }
         .btn-success:hover { background: #218838; }
+        .btn-danger { background: #d9534f; }
+        .btn-danger:hover { background: #c9302c; }
         
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
@@ -70,6 +72,7 @@
                             <option value="">-- 登録パターンから選択 --</option>
                         </select>
                         <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">今のメンバーを登録</button>
+                        <button type="button" class="btn-danger" onclick="deleteSelectedParticipantPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">🗑️ 削除</button>
                     </div>
                     <input type="text" id="metaParticipants" value="" placeholder="例: 山田, 山根 または 直接入力">
                 </div>
@@ -83,6 +86,7 @@
                             <option value="">-- 登録場所から選択 --</option>
                         </select>
                         <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">今の場所を登録</button>
+                        <button type="button" class="btn-danger" onclick="deleteSelectedLocationPreset()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">🗑️ 削除</button>
                     </div>
                     <input type="text" id="metaLocation" value="" placeholder="例: 第1会議室 または 直接入力">
                 </div>
@@ -133,9 +137,12 @@
             </div>
             
             <label>出力フォーマット選択（※デフォルト設定なし）:</label>
-            <select id="formatTemplate" style="flex: 1;">
-                <option value="">-- フォーマットを選択してください --</option>
-            </select>
+            <div class="input-container">
+                <select id="formatTemplate" style="flex: 1;">
+                    <option value="">-- フォーマットを選択してください --</option>
+                </select>
+                <button type="button" class="btn-danger" onclick="deleteSelectedFormatTemplate()" style="padding: 8px 12px; font-size: 0.85em; white-space: nowrap;">🗑️ 選択中のフォーマットを削除</button>
+            </div>
         </div>
         <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
         <div style="display: flex; gap: 10px;">
@@ -151,6 +158,7 @@
             statusEl.textContent = text;
         }
 
+        // --- 参加者の管理・削除 ---
         const PART_STORAGE_KEY = 'minutes_participant_presets';
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
@@ -180,12 +188,25 @@
                 alert('このメンバー構成はすでに登録されています。');
             }
         }
+        function deleteSelectedParticipantPreset() {
+            const select = document.getElementById('participantPreset');
+            const val = select.value;
+            if (!val) { alert('削除する参加者パターンを選択してください。'); return; }
+            if (confirm(`「${val}」を登録データから削除しますか？`)) {
+                let items = getParticipants();
+                items = items.filter(i => i !== val);
+                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
+                loadParticipantsToSelect();
+                alert('削除しました。');
+            }
+        }
         function applyParticipantPreset() {
             const select = document.getElementById('participantPreset');
             const input = document.getElementById('metaParticipants');
             if (select.value) input.value = select.value;
         }
 
+        // --- 場所の管理・削除 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
@@ -204,10 +225,7 @@
         }
         function saveCurrentAsLocationPreset() {
             const currentVal = document.getElementById('metaLocation').value.trim();
-            if (!currentVal) {
-                alert('場所欄が空です。');
-                return;
-            }
+            if (!currentVal) { alert('場所欄が空です。'); return; }
             const items = getLocations();
             if (!items.includes(currentVal)) {
                 items.push(currentVal);
@@ -218,12 +236,25 @@
                 alert('この場所はすでに登録されています。');
             }
         }
+        function deleteSelectedLocationPreset() {
+            const select = document.getElementById('locationPreset');
+            const val = select.value;
+            if (!val) { alert('削除する場所を選択してください。'); return; }
+            if (confirm(`「${val}」を登録データから削除しますか？`)) {
+                let items = getLocations();
+                items = items.filter(i => i !== val);
+                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
+                loadLocationsToSelect();
+                alert('削除しました。');
+            }
+        }
         function applyLocationPreset() {
             const select = document.getElementById('locationPreset');
             const input = document.getElementById('metaLocation');
             if (select.value) input.value = select.value;
         }
 
+        // --- フォーマットの管理・削除 ---
         const FORMAT_STORAGE_KEY = 'minutes_format_templates_base64';
         function getFormats() {
             const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
@@ -241,14 +272,10 @@
             });
         }
 
-        // WordファイルをそのままBase64形式で保存（レイアウト保持のため）
         function uploadFormatDocument() {
             const fileInput = document.getElementById('formatDocFile');
             const file = fileInput.files[0];
-            if (!file) {
-                alert('登録するWordファイル(.docx)を選択してください。');
-                return;
-            }
+            if (!file) { alert('登録するWordファイル(.docx)を選択してください。'); return; }
             const reader = new FileReader();
             reader.onload = function(event) {
                 const base64Data = event.target.result;
@@ -262,6 +289,19 @@
                 fileInput.value = '';
             };
             reader.readAsDataURL(file);
+        }
+
+        function deleteSelectedFormatTemplate() {
+            const select = document.getElementById('formatTemplate');
+            const formatName = select.value;
+            if (!formatName) { alert('削除するフォーマットを選択してください。'); return; }
+            if (confirm(`フォーマット「${formatName}」を削除しますか？`)) {
+                let formats = getFormats();
+                delete formats[formatName];
+                localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
+                loadFormatsToSelect();
+                alert('削除しました。');
+            }
         }
 
         window.onload = function() {
@@ -458,7 +498,6 @@
             const sec = document.getElementById('metaSecretary').value;
             const content = document.getElementById('summaryEditor').value;
 
-            // テキスト出力用（簡易置換）
             const textOutput = `日時: ${dt}\n場所: ${loc}\n参加者: ${parts}\n書記: ${sec}\n\n${content}`;
             
             navigator.clipboard.writeText(textOutput).then(() => {
@@ -466,7 +505,6 @@
             });
         }
 
-        // --- 元のWordファイルのレイアウトを維持したまま変数部分を置換してダウンロード ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -482,7 +520,6 @@
             const content = document.getElementById('summaryEditor').value;
 
             try {
-                // Base64をバイナリ配列に変換
                 const base64String = base64Data.split(',')[1];
                 const binaryString = atob(base64String);
                 const len = binaryString.length;
@@ -491,7 +528,6 @@
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // Docxtemplaterでテンプレート内のタグを直接置換
                 const zip = new PZip(bytes.buffer);
                 const doc = new window.docxtemplater(zip, {
                     paragraphLoop: true,
