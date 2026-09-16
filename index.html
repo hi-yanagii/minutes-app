@@ -5,7 +5,7 @@
     <title>議事録くん！！</title>
     <!-- Word(.docx)読み込み用のmammoth.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-    <!-- Word(.docx)生成・出力用のdocx.js (安定版CDN) -->
+    <!-- Word(.docx)生成・出力用のdocx.js -->
     <script src="https://cdn.jsdelivr.net/npm/docx@7.3.0/build/index.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
@@ -34,16 +34,17 @@
         .chat-msg.user { color: #333; text-align: right; }
         
         #statusMessage { font-size: 0.85em; font-weight: bold; margin-top: 5px; color: #0066cc; min-height: 1.2em; }
+        .step-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     </style>
 </head>
 <body>
 
     <h1>議事録くん！！</h1>
 
+    <!-- ステップ1：音声ファイルとメタデータ -->
     <section>
         <div class="section-header">
             <h2>① 録音データのアップロード & メタデータ入力</h2>
-            <button id="processBtn" onclick="startProcess()" style="padding: 8px 16px; font-size: 0.9em;">🚀 議事録の生成・要約を開始する</button>
         </div>
 
         <div style="margin-bottom: 15px;">
@@ -92,19 +93,27 @@
                 </div>
             </div>
         </div>
+
+        <!-- 分割されたステップ実行ボタン -->
+        <div class="step-btns">
+            <button id="btnStep12" onclick="runStep1And2()">1 & 2. 音声分析 & テキスト化</button>
+            <button id="btnStep3" onclick="runStep3()" class="btn-success" style="background: #17a2b8;">3. 要約の実行</button>
+            <button id="btnStep5" onclick="runStep5()" class="btn-success">5. 議事録形式に校正</button>
+        </div>
     </section>
 
+    <!-- ステップ2：プレビュー編集 & AI対話修正 -->
     <section>
-        <h2>② AI対話による修正 & テキスト直接編集</h2>
+        <h2>② AI対話による修正 & テキスト直接編集 (ステップ4)</h2>
         <div class="workspace">
             <div class="pane">
-                <label>要約プレビュー・直接編集画面（細かい微調整用）:</label>
-                <textarea id="summaryEditor" class="editor">ここに生成された要約が表示されます。チャットでAIに直してもらうほか、ここを直接書き換えることもできます。</textarea>
+                <label>テキスト・要約プレビュー（直接編集可能）:</label>
+                <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
             </div>
             <div class="pane">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
-                    <div class="chat-msg ai"><b>[AI]:</b> 音声データを読み込むと、ここに初期要約を作成します。修正したい指示をチャットで伝えてください。</div>
+                    <div class="chat-msg ai"><b>[AI]:</b> 音声ファイルを読み込み、上のボタンから各ステップを実行してください。</div>
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 専門用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
@@ -114,6 +123,7 @@
         </div>
     </section>
 
+    <!-- ステップ3：フォーマット出力 -->
     <section>
         <h2>③ 最終出力</h2>
         <div style="margin-bottom: 15px;">
@@ -309,70 +319,102 @@
             }
         }
 
-        async function startProcess() {
+        // ステップ1 & 2: 音声入力分析 + テキスト化
+        async function runStep1And2() {
             const apiKey = getApiKey();
-            if (!apiKey) {
-                alert('Gemini APIキーを入力してください。');
-                return;
-            }
-
+            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
             const fileInput = document.getElementById('audioFile');
             const file = fileInput.files[0];
-            if (!file) {
-                alert('音声ファイルを選択してください。');
-                return;
-            }
+            if (!file) { alert('音声ファイルを選択してください。'); return; }
 
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
-            const processBtn = document.getElementById('processBtn');
-
-            processBtn.disabled = true;
-            processBtn.textContent = "⏳ 解析中...";
-            showStatus("音声ファイルを読み込み、Geminiへ送信しています...");
-            editor.value = "音声ファイルを解析中... しばらくお待ちください。";
+            
+            showStatus("ステップ1&2: 音声解析およびテキスト化を実行中...");
+            editor.value = "音声を解析・テキスト化中...";
 
             try {
-                showStatus("音声をバイナリデータに変換中...");
                 const audioPart = await fileToGenerativePart(file);
-                
-                showStatus("Gemini APIで文字起こし・要約を実行中...");
                 const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [
-                            {
-                                parts: [
-                                    audioPart,
-                                    {
-                                        text: "【最重要指示】必ず日本語で出力してください。この音声を聴き取り、会議の要点や決定事項の本文のみを作成してください。ルール：日時、場所、参加者などのメタデータや「議事録」といったタイトル・見出しは一切含めず、純粋な本文・内容のみを出力してください。# や * などの記号（Markdown記号）はWordに貼り付けた際に邪魔になるため、絶対に一切使用しないでください。改行や全角スペース、①②③や・を用いてテキストのみですっきりとレイアウトを構成してください。名詞化、体現止め、常体表現（だ・である調）を基本としてまとめてください。"
-                                    }
-                                ]
-                            }
-                        ]
+                        contents: [{
+                            parts: [
+                                audioPart,
+                                { text: "【指示】この音声データの特性を解析し、発言内容を正確なテキスト文字列（文字起こし）に変換してください。余計な装飾は不要です。" }
+                            ]
+                        }]
                     })
                 });
-                
-                if (data.error) {
-                    throw new Error(`APIエラー: ${data.error.message} (コード: ${data.error.code})`);
-                }
-                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-                    const resultText = data.candidates[0].content.parts[0].text;
-                    editor.value = resultText;
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声ファイルの解析と初期要約の作成が完了しました。</div>`;
-                    showStatus("✨ 議事録の生成が完了しました！");
-                } else {
-                    throw new Error("予期せぬレスポンス形式です: " + JSON.stringify(data));
-                }
-            } catch (error) {
-                console.error(error);
-                showStatus("❌ エラーが発生しました", true);
-                alert('API処理中にエラーが発生しました:\n' + error.message);
-                editor.value = "エラーが発生しました。コンソールをご確認ください。";
-            } finally {
-                processBtn.disabled = false;
-                processBtn.textContent = "🚀 議事録の生成・要約を開始する";
+
+                if (data.error) throw new Error(data.error.message);
+                const text = data.candidates[0].content.parts[0].text;
+                editor.value = text;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ1&2（音声分析・テキスト化）が完了しました。</div>`;
+                showStatus("✨ テキスト化完了");
+            } catch (e) {
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
+            }
+        }
+
+        // ステップ3: 要約
+        async function runStep3() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
+            const editor = document.getElementById('summaryEditor');
+            const history = document.getElementById('chatHistory');
+            if (!editor.value.trim()) { alert('テキストがありません。先にステップ1&2を実行してください。'); return; }
+
+            showStatus("ステップ3: 要約を実行中...");
+            try {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下のテキスト全体の要点を抽出し、要約を作成してください。\n\n${editor.value}` }]
+                        }]
+                    })
+                });
+
+                if (data.error) throw new Error(data.error.message);
+                editor.value = data.candidates[0].content.parts[0].text;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ3（要約）が完了しました。</div>`;
+                showStatus("✨ 要約完了");
+            } catch (e) {
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
+            }
+        }
+
+        // ステップ5: 議事録に起こす（校正）
+        async function runStep5() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
+            const editor = document.getElementById('summaryEditor');
+            const history = document.getElementById('chatHistory');
+
+            showStatus("ステップ5: ビジネス用議事録形式に校正中...");
+            try {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下の内容をビジネス用の議事録形式に校正してください。\nルール：名詞化、体現止め、常体表現（だ・である調）を基本とし、#や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめてください。\n\n${editor.value}` }]
+                        }]
+                    })
+                });
+
+                if (data.error) throw new Error(data.error.message);
+                editor.value = data.candidates[0].content.parts[0].text;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ5（議事録形式への校正）が完了しました。</div>`;
+                showStatus("✨ 議事録校正完了");
+            } catch (e) {
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
             }
         }
 
@@ -383,59 +425,36 @@
             const input = document.getElementById('chatInput');
             const history = document.getElementById('chatHistory');
             const editor = document.getElementById('summaryEditor');
-            const sendBtn = document.getElementById('sendBtn');
             
             if(!input.value.trim()) return;
-
             const userText = input.value;
             history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b><br>${userText.replace(/\n/g, '<br>')}</div>`;
             input.value = '';
             history.scrollTop = history.scrollHeight;
-
-            sendBtn.disabled = true;
-            sendBtn.textContent = "送信中";
 
             try {
                 const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [
-                            {
-                                parts: [
-                                    { text: `【最重要指示】必ず日本語で出力してください。日時、場所、タイトルなどは含めず、純粋な本文のみを出力してください。# や * などの記号（Markdown記号）は一切使用せず、改行や①②③や・を用いてテキストのみで構成してください。\n現在の議事録案:\n${editor.value}\n\nユーザーからの修正指示:\n${userText}\n\n指示に従って議事録の内容を修正し、修正後の全文を日本語で出力してください。ルール：名詞化、体現止め、常体表現を遵守してください。` }
-                                ]
-                            }
-                        ]
+                        contents: [{
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                        }]
                     })
                 });
 
-                if (data.error) {
-                    throw new Error(`APIエラー: ${data.error.message}`);
-                }
-                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-                    const newText = data.candidates[0].content.parts[0].text;
-                    editor.value = newText;
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行いました。</div>`;
-                    history.scrollTop = history.scrollHeight;
-                } else {
-                    throw new Error("予期せぬレスポンス形式です");
-                }
+                if (data.error) throw new Error(data.error.message);
+                editor.value = data.candidates[0].content.parts[0].text;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行いました。（ステップ4）</div>`;
+                history.scrollTop = history.scrollHeight;
             } catch (e) {
-                console.error(e);
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 修正処理でエラーが発生しました: ${e.message}</div>`;
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = "送信";
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
             }
         }
 
         function generateFinalOutput() {
             const formatName = document.getElementById('formatTemplate').value;
-            if (!formatName) {
-                alert('出力フォーマットが選択されていません。フォーマットを選択またはアップロードしてください。');
-                return;
-            }
+            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
 
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
@@ -458,17 +477,13 @@
             }
             
             navigator.clipboard.writeText(finalOutput).then(() => {
-                alert(`「${formatName}」のフォーマットで議事録をクリップボードにコピーしました！`);
+                alert(`「${formatName}」のフォーマットでクリップボードにコピーしました！`);
             });
         }
 
-        // --- Wordファイル(.docx)としてのダウンロード機能 ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
-            if (!formatName) {
-                alert('出力フォーマットが選択されていません。フォーマットを選択またはアップロードしてください。');
-                return;
-            }
+            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
 
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
@@ -491,25 +506,15 @@
             }
 
             try {
-                // docx 7.3.0 の正しい記法でドキュメントを構築
                 const paragraphs = finalOutput.split('\n').map(line => {
                     return new docx.Paragraph({
-                        children: [
-                            new docx.TextRun({
-                                text: line,
-                                size: 22, // 11pt
-                                font: "BIZ UDPGothic"
-                            })
-                        ],
+                        children: [new docx.TextRun({ text: line, size: 22, font: "BIZ UDPGothic" })],
                         spacing: { after: 120 }
                     });
                 });
 
                 const doc = new docx.Document({
-                    sections: [{
-                        properties: {},
-                        children: paragraphs,
-                    }]
+                    sections: [{ properties: {}, children: paragraphs }]
                 });
 
                 const blob = await docx.Packer.toBlob(doc);
@@ -523,7 +528,6 @@
                 window.URL.revokeObjectURL(url);
                 alert('Wordファイルのダウンロードが完了しました！');
             } catch (err) {
-                console.error(err);
                 alert('Wordファイルの生成に失敗しました: ' + err.message);
             }
         }
