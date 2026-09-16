@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録くん！！</title>
-    <!-- Word(.docx)読み込み用のmammoth.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-    <!-- Word(.docx)生成・出力用のdocx.js -->
-    <script src="https://cdn.jsdelivr.net/npm/docx@7.3.0/build/index.js"></script>
+    <!-- Word(.docx)テンプレート処理・生成用のPizzipとDocxtemplater -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1100px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -138,10 +137,10 @@
                 <option value="">-- フォーマットを選択してください --</option>
             </select>
         </div>
-        <p style="font-size: 0.85em; color: #666;">※ 上記のメタデータおよびテキストはいつでも修正可能です。</p>
+        <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
         <div style="display: flex; gap: 10px;">
             <button onclick="generateFinalOutput()" class="btn-success" style="flex: 1;">📋 テキストでクリップボードにコピー</button>
-            <button onclick="downloadWordDocument()" style="flex: 1; background: #d9534f;">💾 Wordファイル(.docx)としてダウンロード</button>
+            <button onclick="downloadWordDocument()" style="flex: 1; background: #d9534f;">💾 元のレイアウトを維持してWordダウンロード</button>
         </div>
     </section>
 
@@ -225,7 +224,7 @@
             if (select.value) input.value = select.value;
         }
 
-        const FORMAT_STORAGE_KEY = 'minutes_format_templates';
+        const FORMAT_STORAGE_KEY = 'minutes_format_templates_base64';
         function getFormats() {
             const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
             return saved ? JSON.parse(saved) : {};
@@ -242,6 +241,7 @@
             });
         }
 
+        // WordファイルをそのままBase64形式で保存（レイアウト保持のため）
         function uploadFormatDocument() {
             const fileInput = document.getElementById('formatDocFile');
             const file = fileInput.files[0];
@@ -251,21 +251,17 @@
             }
             const reader = new FileReader();
             reader.onload = function(event) {
-                mammoth.extractRawText({arrayBuffer: event.target.result})
-                    .then(function(result) {
-                        const templateText = result.value;
-                        const formatName = file.name.replace(/\.[^/.]+$/, "");
-                        const formats = getFormats();
-                        formats[formatName] = templateText;
-                        localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
-                        loadFormatsToSelect();
-                        document.getElementById('formatTemplate').value = formatName;
-                        alert(`Wordファイル「${file.name}」をフォーマットとして記憶しました！`);
-                        fileInput.value = '';
-                    })
-                    .catch(err => alert('Wordファイルの読み込みに失敗しました: ' + err));
+                const base64Data = event.target.result;
+                const formatName = file.name.replace(/\.[^/.]+$/, "");
+                const formats = getFormats();
+                formats[formatName] = base64Data;
+                localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
+                loadFormatsToSelect();
+                document.getElementById('formatTemplate').value = formatName;
+                alert(`Wordファイル「${file.name}」のレイアウトをテンプレートとして記憶しました！`);
+                fileInput.value = '';
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsDataURL(file);
         }
 
         window.onload = function() {
@@ -462,28 +458,22 @@
             const sec = document.getElementById('metaSecretary').value;
             const content = document.getElementById('summaryEditor').value;
 
-            const formats = getFormats();
-            let template = formats[formatName] || "";
-
-            let finalOutput = template
-                .replace(/{{日時}}|\[日時\]/g, dt)
-                .replace(/{{場所}}|\[場所\]/g, loc)
-                .replace(/{{参加者}}|\[参加者\]/g, parts)
-                .replace(/{{書記}}|\[書記\]/g, sec)
-                .replace(/{{本文}}|\[本文\]|{{要約}}|\[要約\]/g, content);
-
-            if (!template.includes(content)) {
-                finalOutput += `\n\n${content}`;
-            }
+            // テキスト出力用（簡易置換）
+            const textOutput = `日時: ${dt}\n場所: ${loc}\n参加者: ${parts}\n書記: ${sec}\n\n${content}`;
             
-            navigator.clipboard.writeText(finalOutput).then(() => {
-                alert(`「${formatName}」のフォーマットでクリップボードにコピーしました！`);
+            navigator.clipboard.writeText(textOutput).then(() => {
+                alert(`フォーマットテキストをクリップボードにコピーしました！`);
             });
         }
 
+        // --- 元のWordファイルのレイアウトを維持したまま変数部分を置換してダウンロード ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
+
+            const formats = getFormats();
+            const base64Data = formats[formatName];
+            if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
 
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
@@ -491,34 +481,38 @@
             const sec = document.getElementById('metaSecretary').value;
             const content = document.getElementById('summaryEditor').value;
 
-            const formats = getFormats();
-            let template = formats[formatName] || "";
-
-            let finalOutput = template
-                .replace(/{{日時}}|\[日時\]/g, dt)
-                .replace(/{{場所}}|\[場所\]/g, loc)
-                .replace(/{{参加者}}|\[参加者\]/g, parts)
-                .replace(/{{書記}}|\[書記\]/g, sec)
-                .replace(/{{本文}}|\[本文\]|{{要約}}|\[要約\]/g, content);
-
-            if (!template.includes(content)) {
-                finalOutput += `\n\n${content}`;
-            }
-
             try {
-                const paragraphs = finalOutput.split('\n').map(line => {
-                    return new docx.Paragraph({
-                        children: [new docx.TextRun({ text: line, size: 22, font: "BIZ UDPGothic" })],
-                        spacing: { after: 120 }
-                    });
+                // Base64をバイナリ配列に変換
+                const base64String = base64Data.split(',')[1];
+                const binaryString = atob(base64String);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Docxtemplaterでテンプレート内のタグを直接置換
+                const zip = new PZip(bytes.buffer);
+                const doc = new window.docxtemplater(zip, {
+                    paragraphLoop: true,
+                    linebreaks: true,
                 });
 
-                const doc = new docx.Document({
-                    sections: [{ properties: {}, children: paragraphs }]
+                doc.render({
+                    日時: dt,
+                    場所: loc,
+                    参加者: parts,
+                    書記: sec,
+                    本文: content,
+                    要約: content
                 });
 
-                const blob = await docx.Packer.toBlob(doc);
-                const url = window.URL.createObjectURL(blob);
+                const out = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                });
+
+                const url = window.URL.createObjectURL(out);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `議事録_${dt.replace(/[:\s]/g, '-')}.docx`;
@@ -526,9 +520,10 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！');
+                alert('元のレイアウトを維持したWordファイルのダウンロードが完了しました！');
             } catch (err) {
-                alert('Wordファイルの生成に失敗しました: ' + err.message);
+                console.error(err);
+                alert('Wordファイルの生成に失敗しました: ライブラリのエラーまたはテンプレートの構文エラーを確認してください。');
             }
         }
     </script>
