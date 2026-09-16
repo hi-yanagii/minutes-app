@@ -537,6 +537,14 @@
                     delimiters: {
                         start: '{{',
                         end: '}}'
+                    },
+                    // Word特有のタグ分割（XMLスプリット）を自動で結合・修復するモジュール
+                    parser: function(tag) {
+                        return {
+                            get: function(scope) {
+                                return scope[tag.trim()];
+                            }
+                        };
                     }
                 });
 
@@ -565,7 +573,11 @@
                 alert('元のレイアウトを維持したWordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error(err);
-                alert('Wordファイルの生成に失敗しました: ライブラリのエラーまたはテンプレートの構文エラーを確認してください。');
+                let errMsg = err.message || '';
+                if (err.properties && err.properties.errors) {
+                    errMsg = err.properties.errors.map(e => e.message || JSON.stringify(e)).join(' / ');
+                }
+                alert('Wordファイルの生成に失敗しました: ' + errMsg);
             }
         }
     </script>
