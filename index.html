@@ -8,6 +8,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
+        .header-container { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
+        h1 { margin: 0; }
+        .app-version { font-size: 0.85em; color: #666; font-weight: normal; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0066cc; padding-bottom: 5px; margin-bottom: 15px; }
         h2 { font-size: 1.1em; margin: 0; border: none; padding: 0; }
@@ -51,7 +54,10 @@
 </head>
 <body>
 
-    <h1>議事録くん！！</h1>
+    <div class="header-container">
+        <h1>議事録くん！！</h1>
+        <span class="app-version">V1</span>
+    </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
     <section>
@@ -530,8 +536,13 @@
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // PZip（大文字・小文字の修正）を使用
-                const zip = new PizZip(bytes.buffer);
+                // グローバル変数の表記揺れ（PizZip / Pizzip / pizzip）を安全に吸収
+                const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
+                if (!ZipLib) {
+                    throw new Error("PizZipライブラリが読み込まれていません。インターネット接続やCDNを確認してください。");
+                }
+
+                const zip = new ZipLib(bytes.buffer);
                 const doc = new window.docxtemplater(zip, {
                     paragraphLoop: true,
                     linebreaks: true,
