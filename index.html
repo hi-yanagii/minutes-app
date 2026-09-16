@@ -56,7 +56,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1</span>
+        <span class="app-version">V1.1</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -380,7 +380,7 @@
             }
         }
 
-        // --- 5ステップ一気通貫連続実行（gemini-3.6-flash使用・全議案対応・46文字整形） ---
+        // --- 5ステップ一気通貫連続実行（gemini-3.6-flash使用・全議案対応・不明瞭対応・46文字整形） ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -396,7 +396,7 @@
             processBtn.textContent = "⏳ 処理中...";
 
             try {
-                // 1. 音声入力分析 & 2. テキスト化
+                // 1. 音声入力分析 & 2. テキスト化（不明瞭な部分の勝手な推測を禁止）
                 showStatus("1-2. 音声入力分析・テキスト化中...");
                 const audioPart = await fileToGenerativePart(file);
                 const data1 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -406,7 +406,7 @@
                         contents: [{
                             parts: [
                                 audioPart,
-                                { text: "【指示】この音声データの特性を解析し、冒頭から結びまで発言内容を一切省略せず、すべての発言を正確なテキスト文字列（文字起こし）に変換してください。" }
+                                { text: "【指示】この音声データの特性を解析し、冒頭から結びまで発言内容を正確なテキスト文字列に変換してください。音声が不明瞭で聞き取れない部分や判断できない箇所がある場合は、勝手に推測して補完せず「【音声不明瞭・聞き取り不能】」と明確に記載してください。" }
                             ]
                         }]
                     })
@@ -428,14 +428,14 @@
                 if (data2.error) throw new Error(data2.error.message);
                 const summaryText = data2.candidates[0].content.parts[0].text;
 
-                // 5. 議事録に起こす（名詞化・体現止め・常体表現・全議案・Q&A形式）
+                // 5. 議事録に起こす（名詞化・体現止め・常体表現・全議案・Q&A形式・不明瞭対策）
                 showStatus("5. ビジネス用議事録形式（全議案・Q&A含む）に校正中...");
                 const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 途中で省略せず、含まれているすべての議案（議題）を漏れなく「議案1」「議案2」「議案3」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
+                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 音声データ内で聞き取れない部分や不明瞭な箇所が含まれている場合は、勝手に推測・捏造せず、「【音声不明瞭のため確認できず】」とそのまま記載すること。\n- 途中で省略せず、含まれているすべての議案（議題）を漏れなく「議案1」「議案2」「議案3」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
                         }]
                     })
                 });
