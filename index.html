@@ -155,6 +155,23 @@
             statusEl.textContent = text;
         }
 
+        // 文字列を指定文字数（46文字）ごとに改行コードで折り返す補助関数
+        function wrapTextByLength(str, maxLen = 46) {
+            if (!str) return "";
+            const lines = str.split('\n');
+            let wrappedLines = [];
+            for (let line of lines) {
+                if (line.length <= maxLen) {
+                    wrappedLines.push(line);
+                } else {
+                    for (let i = 0; i < line.length; i += maxLen) {
+                        wrappedLines.push(line.substring(i, i + maxLen));
+                    }
+                }
+            }
+            return wrappedLines.join('\n');
+        }
+
         const PART_STORAGE_KEY = 'minutes_participant_presets';
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
@@ -349,7 +366,7 @@
             }
         }
 
-        // --- 5ステップ一気通貫連続実行（Q&A形式を含むように校正プロンプトを調整） ---
+        // --- 5ステップ一気通貫連続実行（46文字整形含む） ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -397,7 +414,7 @@
                 if (data2.error) throw new Error(data2.error.message);
                 const summaryText = data2.candidates[0].content.parts[0].text;
 
-                // 5. 議事録に起こす（名詞化・体現止め・常体表現 ＋ Q&A形式を最初から含める）
+                // 5. 議事録に起こす（名詞化・体現止め・常体表現・Q&A形式）
                 showStatus("5. ビジネス用議事録形式（Q&A含む）に校正中...");
                 const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -410,10 +427,13 @@
                 });
                 if (data3.error) throw new Error(data3.error.message);
                 
-                const finalResult = data3.candidates[0].content.parts[0].text;
+                let finalResult = data3.candidates[0].content.parts[0].text;
+                // 1行あたり46文字で綺麗に折り返し整形
+                finalResult = wrapTextByLength(finalResult, 46);
+
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声からQ&Aを含む議事録への一連の処理が完了しました。</div>`;
-                showStatus("✨ Q&Aを含む議事録の生成・校正が完了しました！");
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声から46文字単位の整形を含む議事録への一連の処理が完了しました。</div>`;
+                showStatus("✨ 議事録の生成・校正が完了しました！");
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -450,8 +470,12 @@
                 });
 
                 if (data.error) throw new Error(data.error.message);
-                editor.value = data.candidates[0].content.parts[0].text;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行いました。</div>`;
+                let updatedText = data.candidates[0].content.parts[0].text;
+                // チャットでの修正後も1行46文字で綺麗に折り返し整形
+                updatedText = wrapTextByLength(updatedText, 46);
+
+                editor.value = updatedText;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、46文字単位で再整形しました。</div>`;
                 history.scrollTop = history.scrollHeight;
             } catch (e) {
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
