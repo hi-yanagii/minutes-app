@@ -429,7 +429,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 途中で省略せず、含まれているすべての議案（議題）を漏れなく「議案1」「議案2」「議案3」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を「【質疑応答】」または「Q. / A.」形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
+                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 途中で省略せず、含まれているすべての議案（議題）を漏れなく「議案1」「議案2」「議案3」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
                         }]
                     })
                 });
@@ -530,21 +530,14 @@
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                const zip = new PZip(bytes.buffer);
+                // PZip（大文字・小文字の修正）を使用
+                const zip = new PizZip(bytes.buffer);
                 const doc = new window.docxtemplater(zip, {
                     paragraphLoop: true,
                     linebreaks: true,
                     delimiters: {
                         start: '{{',
                         end: '}}'
-                    },
-                    // Word特有のタグ分割（XMLスプリット）を自動で結合・修復するモジュール
-                    parser: function(tag) {
-                        return {
-                            get: function(scope) {
-                                return scope[tag.trim()];
-                            }
-                        };
                     }
                 });
 
