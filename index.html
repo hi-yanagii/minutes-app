@@ -349,7 +349,7 @@
             }
         }
 
-        // --- 5ステップ一気通貫連続実行 ---
+        // --- 5ステップ一気通貫連続実行（Q&A形式を含むように校正プロンプトを調整） ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -397,14 +397,14 @@
                 if (data2.error) throw new Error(data2.error.message);
                 const summaryText = data2.candidates[0].content.parts[0].text;
 
-                // 5. 議事録に起こす（名詞化・体現止め・常体表現）
-                showStatus("5. ビジネス用議事録形式に校正中...");
+                // 5. 議事録に起こす（名詞化・体現止め・常体表現 ＋ Q&A形式を最初から含める）
+                showStatus("5. ビジネス用議事録形式（Q&A含む）に校正中...");
                 const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の内容をビジネス用の議事録形式に校正してください。\nルール：名詞化、体現止め、常体表現（だ・である調）を基本とし、#や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめてください。日時や場所、タイトルは本文に入力しないでください。\n\n${summaryText}` }]
+                            parts: [{ text: `以下の内容をビジネス用の議事録形式に校正してください。\nルール：\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 会議内でやり取りされた主要な質疑応答を「【質疑応答】」または「Q. / A.」形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
                         }]
                     })
                 });
@@ -412,8 +412,8 @@
                 
                 const finalResult = data3.candidates[0].content.parts[0].text;
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声から議事録への一連の処理が完了しました。</div>`;
-                showStatus("✨ 議事録の生成・校正が完了しました！");
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 音声からQ&Aを含む議事録への一連の処理が完了しました。</div>`;
+                showStatus("✨ Q&Aを含む議事録の生成・校正が完了しました！");
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
