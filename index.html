@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録くん！！</title>
-    <!-- Word(.docx)テンプレート処理・生成用のPizzipとDocxtemplater -->
+    <!-- Word(.docx)テンプレート処理・生成用のPizzipとDocxtemplater (CDN) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
     <style>
@@ -36,7 +36,6 @@
         .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
         
-        /* 枠の幅を全角46文字分に正確に設定（46em） */
         textarea.editor { 
             height: 350px; 
             font-family: monospace; 
@@ -56,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.1</span>
+        <span class="app-version">Ver1.3</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -169,7 +168,6 @@
             statusEl.textContent = text;
         }
 
-        // 文字列を指定文字数（46文字）ごとに改行コードで折り返す補助関数
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
             const lines = str.split('\n');
@@ -380,7 +378,6 @@
             }
         }
 
-        // --- 5ステップ一気通貫連続実行（gemini-3.6-flash使用・全議案対応・不明瞭対応・46文字整形） ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -396,7 +393,6 @@
             processBtn.textContent = "⏳ 処理中...";
 
             try {
-                // 1. 音声入力分析 & 2. テキスト化（不明瞭な部分の勝手な推測を禁止）
                 showStatus("1-2. 音声入力分析・テキスト化中...");
                 const audioPart = await fileToGenerativePart(file);
                 const data1 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -414,7 +410,6 @@
                 if (data1.error) throw new Error(data1.error.message);
                 const rawText = data1.candidates[0].content.parts[0].text;
 
-                // 3. 要約（全議案を網羅する指示）
                 showStatus("3. 全議案の要約処理を実行中...");
                 const data2 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -428,7 +423,6 @@
                 if (data2.error) throw new Error(data2.error.message);
                 const summaryText = data2.candidates[0].content.parts[0].text;
 
-                // 5. 議事録に起こす（名詞化・体現止め・常体表現・全議案・Q&A形式・不明瞭対策）
                 showStatus("5. ビジネス用議事録形式（全議案・Q&A含む）に校正中...");
                 const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -442,7 +436,6 @@
                 if (data3.error) throw new Error(data3.error.message);
                 
                 let finalResult = data3.candidates[0].content.parts[0].text;
-                // 1行あたり46文字で綺麗に折り返し整形
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
@@ -485,7 +478,6 @@
 
                 if (data.error) throw new Error(data.error.message);
                 let updatedText = data.candidates[0].content.parts[0].text;
-                // チャットでの修正後も1行46文字で綺麗に折り返し整形
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
@@ -513,6 +505,38 @@
             });
         }
 
+        // ライブラリを確実にロードする補助関数（CDNがブロックされた場合に動的に読み直す）
+        async function ensureLibrariesLoaded() {
+            const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
+            const DocxLib = window.docxtemplater;
+
+            if (ZipLib && DocxLib) return { ZipLib, DocxLib };
+
+            // CDNからの再読み込みを試みる
+            console.log("PizZipまたはDocxtemplaterが見つからないため、再ロードを試みます...");
+            
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js');
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js');
+
+            const recheckedZip = window.PizZip || window.Pizzip || window.pizzip;
+            const recheckedDocx = window.docxtemplater;
+
+            if (!recheckedZip || !recheckedDocx) {
+                throw new Error("PizZipまたはDocxtemplaterライブラリの読み込みに失敗しました。インターネット接続、または拡張機能・セキュリティソフトによるブロックを確認してください。");
+            }
+            return { ZipLib: recheckedZip, DocxLib: recheckedDocx };
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -528,6 +552,9 @@
             const content = document.getElementById('summaryEditor').value;
 
             try {
+                // ライブラリの存在チェックと動的ロード対応
+                const { ZipLib, DocxLib } = await ensureLibrariesLoaded();
+
                 const base64String = base64Data.split(',')[1];
                 const binaryString = atob(base64String);
                 const len = binaryString.length;
@@ -536,14 +563,8 @@
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // グローバル変数の表記揺れ（PizZip / Pizzip / pizzip）を安全に吸収
-                const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
-                if (!ZipLib) {
-                    throw new Error("PizZipライブラリが読み込まれていません。インターネット接続やCDNを確認してください。");
-                }
-
                 const zip = new ZipLib(bytes.buffer);
-                const doc = new window.docxtemplater(zip, {
+                const doc = new DocxLib(zip, {
                     paragraphLoop: true,
                     linebreaks: true,
                     delimiters: {
