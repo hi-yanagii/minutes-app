@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録くん！！</title>
-    <!-- Word(.docx)テンプレート処理・生成用のPizzipとDocxtemplater (CDN) -->
+    <!-- Word(.docx)テンプレート処理・生成用のPizzipとDocxtemplater -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
     <style>
@@ -505,16 +505,12 @@
             });
         }
 
-        // ライブラリを確実にロードする補助関数（CDNがブロックされた場合に動的に読み直す）
         async function ensureLibrariesLoaded() {
             const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
             const DocxLib = window.docxtemplater;
 
             if (ZipLib && DocxLib) return { ZipLib, DocxLib };
 
-            // CDNからの再読み込みを試みる
-            console.log("PizZipまたはDocxtemplaterが見つからないため、再ロードを試みます...");
-            
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js');
             await loadScript('https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js');
 
@@ -522,7 +518,7 @@
             const recheckedDocx = window.docxtemplater;
 
             if (!recheckedZip || !recheckedDocx) {
-                throw new Error("PizZipまたはDocxtemplaterライブラリの読み込みに失敗しました。インターネット接続、または拡張機能・セキュリティソフトによるブロックを確認してください。");
+                throw new Error("PizZipまたはDocxtemplaterライブラリが読み込まれていません。");
             }
             return { ZipLib: recheckedZip, DocxLib: recheckedDocx };
         }
@@ -552,7 +548,6 @@
             const content = document.getElementById('summaryEditor').value;
 
             try {
-                // ライブラリの存在チェックと動的ロード対応
                 const { ZipLib, DocxLib } = await ensureLibrariesLoaded();
 
                 const base64String = base64Data.split(',')[1];
@@ -597,10 +592,11 @@
                 window.URL.revokeObjectURL(url);
                 alert('元のレイアウトを維持したWordファイルのダウンロードが完了しました！');
             } catch (err) {
-                console.error(err);
-                let errMsg = err.message || '';
+                console.error("Word生成エラー詳細:", err);
+                let errMsg = err.message || JSON.stringify(err);
                 if (err.properties && err.properties.errors) {
-                    errMsg = err.properties.errors.map(e => e.message || JSON.stringify(e)).join(' / ');
+                    const docxErrs = err.properties.errors.map(e => e.message || JSON.stringify(e)).join(' / ');
+                    errMsg += " [詳細: " + docxErrs + "]";
                 }
                 alert('Wordファイルの生成に失敗しました: ' + errMsg);
             }
