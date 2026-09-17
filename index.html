@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録くん！！</title>
-    <!-- 安定性の高いjsDelivr CDNに変更 -->
+    <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
     <style>
@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.4</span>
+        <span class="app-version">Ver1.5</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -168,16 +168,38 @@
             statusEl.textContent = text;
         }
 
+        // --- 改良版：括弧や数値の途中で不自然に分断されないスマート折り返し関数 ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
             const lines = str.split('\n');
             let wrappedLines = [];
+            
             for (let line of lines) {
                 if (line.length <= maxLen) {
                     wrappedLines.push(line);
                 } else {
-                    for (let i = 0; i < line.length; i += maxLen) {
-                        wrappedLines.push(line.substring(i, i + maxLen));
+                    let currentLine = line;
+                    while (currentLine.length > maxLen) {
+                        let breakIdx = maxLen;
+                        // 括弧や数字の途中で切れないよう、直前の区切り位置（句読点やスペース、中黒など）を微調整
+                        let subStr = currentLine.substring(0, maxLen + 1);
+                        let lastSpace = Math.max(
+                            subStr.lastIndexOf('、'), 
+                            subStr.lastIndexOf('。'), 
+                            subStr.lastIndexOf(' '), 
+                            subStr.lastIndexOf('（'),
+                            subStr.lastIndexOf('・')
+                        );
+                        
+                        if (lastSpace > maxLen * 0.6) {
+                            breakIdx = lastSpace + 1;
+                        }
+                        
+                        wrappedLines.push(currentLine.substring(0, breakIdx));
+                        currentLine = currentLine.substring(breakIdx);
+                    }
+                    if (currentLine.length > 0) {
+                        wrappedLines.push(currentLine);
                     }
                 }
             }
