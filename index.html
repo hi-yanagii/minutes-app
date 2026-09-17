@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>議事録くん！！</title>
-    <!-- Word(.docx)テンプレート処理・生成用のPizzipとDocxtemplater -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js"></script>
+    <!-- 安定性の高いjsDelivr CDNに変更 -->
+    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         .header-container { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.3</span>
+        <span class="app-version">Ver1.4</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -505,34 +505,6 @@
             });
         }
 
-        async function ensureLibrariesLoaded() {
-            const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
-            const DocxLib = window.docxtemplater;
-
-            if (ZipLib && DocxLib) return { ZipLib, DocxLib };
-
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.min.js');
-            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.45.0/docxtemplater.js');
-
-            const recheckedZip = window.PizZip || window.Pizzip || window.pizzip;
-            const recheckedDocx = window.docxtemplater;
-
-            if (!recheckedZip || !recheckedDocx) {
-                throw new Error("PizZipまたはDocxtemplaterライブラリが読み込まれていません。");
-            }
-            return { ZipLib: recheckedZip, DocxLib: recheckedDocx };
-        }
-
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = src;
-                s.onload = resolve;
-                s.onerror = reject;
-                document.head.appendChild(s);
-            });
-        }
-
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -548,7 +520,12 @@
             const content = document.getElementById('summaryEditor').value;
 
             try {
-                const { ZipLib, DocxLib } = await ensureLibrariesLoaded();
+                const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
+                const DocxLib = window.docxtemplater;
+
+                if (!ZipLib || !DocxLib) {
+                    throw new Error("PizZipまたはDocxtemplaterライブラリが読み込まれていません。");
+                }
 
                 const base64String = base64Data.split(',')[1];
                 const binaryString = atob(base64String);
