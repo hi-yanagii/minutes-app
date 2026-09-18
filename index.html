@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！</title>
+    <title>議事録くん！！（15分自動分割対応版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.5</span>
+        <span class="app-version">Ver1.6 (15分自動分割対応)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -71,7 +71,7 @@
         </div>
 
         <div style="margin-bottom: 15px;">
-            <label>音声ファイル（mp3, m4a, wav等）:</label>
+            <label>音声ファイル（mp3, m4a, wav等 ※長時間の音声対応）:</label>
             <input type="file" id="audioFile" accept="audio/*">
             <div id="statusMessage"></div>
         </div>
@@ -181,7 +181,6 @@
                     let currentLine = line;
                     while (currentLine.length > maxLen) {
                         let breakIdx = maxLen;
-                        // 括弧や数字の途中で切れないよう、直前の区切り位置（句読点やスペース、中黒など）を微調整
                         let subStr = currentLine.substring(0, maxLen + 1);
                         let lastSpace = Math.max(
                             subStr.lastIndexOf('、'), 
@@ -367,7 +366,63 @@
             return key;
         }
 
-        async function fileToGenerativePart(file) {
+        // 音声データをWAV Blobに変換するヘルパー関数
+        function audioBufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            const samples = buffer.length;
+            const blockAlign = (numOfChan * bitDepth) / 8;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = samples * blockAlign;
+            const bufferSize = 44 + dataSize;
+            
+            const arrayBuffer = new ArrayBuffer(bufferSize);
+            const view = new DataView(arrayBuffer);
+            
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(view, 8, 'WAVE');
+            
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numOfChan, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+            
+            const channels = [];
+            for (let i = 0; i < numOfChan; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+            
+            let offset = 44;
+            for (let i = 0; i < samples; i++) {
+                for (let channel = 0; channel < numOfChan; channel++) {
+                    let sample = Math.max(-1, Math.min(1, channels[channel][i]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        async function blobToGenerativePart(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
@@ -375,12 +430,12 @@
                     resolve({
                         inlineData: {
                             data: base64Data,
-                            mimeType: file.type || "audio/mp3"
+                            mimeType: blob.type || "audio/wav"
                         }
                     });
                 };
                 reader.onerror = reject;
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(blob);
             });
         }
 
@@ -412,57 +467,98 @@
             const processBtn = document.getElementById('processBtn');
 
             processBtn.disabled = true;
-            processBtn.textContent = "⏳ 処理中...";
+            processBtn.textContent = "⏳ 音声解析・分割中...";
 
             try {
-                showStatus("1-2. 音声入力分析・テキスト化中...");
-                const audioPart = await fileToGenerativePart(file);
-                const data1 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                audioPart,
-                                { text: "【指示】この音声データの特性を解析し、冒頭から結びまで発言内容を正確なテキスト文字列に変換してください。音声が不明瞭で聞き取れない部分や判断できない箇所がある場合は、勝手に推測して補完せず「【音声不明瞭・聞き取り不能】」と明確に記載してください。" }
-                            ]
-                        }]
-                    })
-                });
-                if (data1.error) throw new Error(data1.error.message);
-                const rawText = data1.candidates[0].content.parts[0].text;
+                showStatus("音声ファイルをデコード中...");
+                const arrayBuffer = await file.arrayBuffer();
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
 
-                showStatus("3. 全議案の要約処理を実行中...");
-                const data2 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下のテキストデータには複数の議案（議題）が含まれています。途中で省略せず、すべての議案について漏れなく要点を抽出してください。\n\n${rawText}` }]
-                        }]
-                    })
-                });
-                if (data2.error) throw new Error(data2.error.message);
-                const summaryText = data2.candidates[0].content.parts[0].text;
+                const duration = decodedAudio.duration; // 秒数
+                const chunkDuration = 900; // 15分 (900秒)
+                const chunks = [];
 
-                showStatus("5. ビジネス用議事録形式（全議案・Q&A含む）に校正中...");
-                const data3 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                for (let start = 0; start < duration; start += chunkDuration) {
+                    const end = Math.min(start + chunkDuration, duration);
+                    const sampleRate = decodedAudio.sampleRate;
+                    const startSample = Math.floor(start * sampleRate);
+                    const endSample = Math.floor(end * sampleRate);
+                    const length = endSample - startSample;
+
+                    const slicedBuffer = audioCtx.createBuffer(decodedAudio.numberOfChannels, length, sampleRate);
+                    for (let c = 0; c < decodedAudio.numberOfChannels; c++) {
+                        const channelData = decodedAudio.getChannelData(c);
+                        const slicedChannelData = slicedBuffer.getChannelData(c);
+                        for (let j = 0; j < length; j++) {
+                            slicedChannelData[j] = channelData[startSample + j];
+                        }
+                    }
+
+                    const wavBlob = audioBufferToWav(slicedBuffer);
+                    chunks.push(wavBlob);
+                }
+
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化を開始します...`);
+                let accumulatedRawText = "";
+
+                // 順番にテキスト化
+                for (let i = 0; i < chunks.length; i++) {
+                    const partNum = i + 1;
+                    showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中...`);
+                    
+                    const audioPart = await blobToGenerativePart(chunks[i]);
+                    const dataRes = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    audioPart,
+                                    { text: `【指示】これは長時間の音声のパート${partNum}です。この音声の発言内容を正確なテキスト文字列に変換してください。音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
+                                ]
+                            }]
+                        })
+                    });
+
+                    if (dataRes.error) throw new Error(dataRes.error.message);
+                    const partText = dataRes.candidates[0].content.parts[0].text;
+                    
+                    accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
+                    editor.value = accumulatedRawText; // 逐次画面に接続・表示
+                }
+
+                showStatus("全パートのテキスト化完了。全体を要約処理中...");
+                const dataSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 音声データ内で聞き取れない部分や不明瞭な箇所が含まれている場合は、勝手に推測・捏造せず、「【音声不明瞭のため確認できず】」とそのまま記載すること。\n- 途中で省略せず、含まれているすべての議案（議題）を漏れなく「議案1」「議案2」「議案3」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
+                            parts: [{ text: `以下のテキストデータは、長時間の会議音声を分割して順次テキスト化したものです。全体を通じて複数の議案が含まれているため、途中で省略せずすべての議案について漏れなく要点を抽出してください。\n\n${accumulatedRawText}` }]
                         }]
                     })
                 });
-                if (data3.error) throw new Error(data3.error.message);
+                if (dataSummary.error) throw new Error(dataSummary.error.message);
+                const summaryText = dataSummary.candidates[0].content.parts[0].text;
+
+                showStatus("ビジネス用議事録形式に校正中...");
+                const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。\n- 途中で省略せず、含まれているすべての議案を漏れなく「議案1」「議案2」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
+                        }]
+                    })
+                });
+                if (dataFinal.error) throw new Error(dataFinal.error.message);
                 
-                let finalResult = data3.candidates[0].content.parts[0].text;
+                let finalResult = dataFinal.candidates[0].content.parts[0].text;
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 全ての議案の網羅および46文字単位の整形を含む一連の処理が完了しました。</div>`;
-                showStatus("✨ 全議案の議事録の生成・校正が完了しました！");
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 長時間音声の15分分割・順次結合および最終の要約・整形処理が完了しました。</div>`;
+                showStatus("✨ 議事録の自動生成・校正が完了しました！");
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -601,6 +697,5 @@
             }
         }
     </script>
-
 </body>
 </html>
