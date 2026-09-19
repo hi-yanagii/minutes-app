@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（15分自動分割対応版）</title>
+    <title>議事録くん！！（15分自動分割・マップリデュース対応版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.6 (15分自動分割対応)</span>
+        <span class="app-version">Ver1.7 (長時間マップリデュース対応)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -71,7 +71,7 @@
         </div>
 
         <div style="margin-bottom: 15px;">
-            <label>音声ファイル（mp3, m4a, wav等 ※長時間の音声対応）:</label>
+            <label>音声ファイル（mp3, m4a, wav等 ※1時間半などの長時間の音声対応）:</label>
             <input type="file" id="audioFile" accept="audio/*">
             <div id="statusMessage"></div>
         </div>
@@ -168,7 +168,7 @@
             statusEl.textContent = text;
         }
 
-        // --- 改良版：括弧や数値の途中で不自然に分断されないスマート折り返し関数 ---
+        // --- スマート折り返し関数 ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
             const lines = str.split('\n');
@@ -455,6 +455,7 @@
             }
         }
 
+        // --- マップ・リデュース方式を採用した長時間処理関数 ---
         async function runAllSteps() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -499,10 +500,11 @@
                     chunks.push(wavBlob);
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化を開始します...`);
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化および個別要約を開始します...`);
+                let partSummaries = [];
                 let accumulatedRawText = "";
 
-                // 順番にテキスト化
+                // マップフェーズ：各パートのテキスト化と個別要約
                 for (let i = 0; i < chunks.length; i++) {
                     const partNum = i + 1;
                     showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中...`);
@@ -523,31 +525,40 @@
 
                     if (dataRes.error) throw new Error(dataRes.error.message);
                     const partText = dataRes.candidates[0].content.parts[0].text;
-                    
                     accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
-                    editor.value = accumulatedRawText; // 逐次画面に接続・表示
+
+                    // 各パートの個別要約生成
+                    showStatus(`【パート ${partNum} / ${chunks.length}】 個別要約生成中...`);
+                    const dataPartSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: `以下のテキストデータは、長時間の会議音声のパート${partNum}の文字起こしです。このパートにおける主要な発言内容、決定事項、議論の要点を簡潔にまとめてください。\n\n${partText}` }]
+                            }]
+                        })
+                    });
+
+                    if (!dataPartSummary.error && dataPartSummary.candidates && dataPartSummary.candidates[0]) {
+                        const pSum = dataPartSummary.candidates[0].content.parts[0].text;
+                        partSummaries.push(`[パート ${partNum} の要約]\n${pSum}`);
+                    } else {
+                        partSummaries.push(`[パート ${partNum} の要約]\n${partText}`);
+                    }
+
+                    editor.value = accumulatedRawText; // リアルタイムの進捗プレビュー
                 }
 
-                showStatus("全パートのテキスト化完了。全体を要約処理中...");
-                const dataSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下のテキストデータは、長時間の会議音声を分割して順次テキスト化したものです。全体を通じて複数の議案が含まれているため、途中で省略せずすべての議案について漏れなく要点を抽出してください。\n\n${accumulatedRawText}` }]
-                        }]
-                    })
-                });
-                if (dataSummary.error) throw new Error(dataSummary.error.message);
-                const summaryText = dataSummary.candidates[0].content.parts[0].text;
-
-                showStatus("ビジネス用議事録形式に校正中...");
+                showStatus("全パートの個別要約完了。全体を統合してビジネス議事録に最終整形中...");
+                
+                // リデュースフェーズ：各パートの要約を統合して最終整形
+                const combinedSummaries = partSummaries.join("\n\n");
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の内容をすべてビジネス用の議事録形式に校正してください。\nルール：\n- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。\n- 途中で省略せず、含まれているすべての議案を漏れなく「議案1」「議案2」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${summaryText}` }]
+                            parts: [{ text: `以下の各パートの要約データをすべて統合し、ビジネス用の議事録形式に最終校正してください。\nルール：\n- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。\n- 途中で省略せず、含まれているすべての議案を漏れなく「議案1」「議案2」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${combinedSummaries}` }]
                         }]
                     })
                 });
@@ -557,7 +568,7 @@
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 長時間音声の15分分割・順次結合および最終の要約・整形処理が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（分割・個別要約・統合整形）が完了しました。</div>`;
                 showStatus("✨ 議事録の自動生成・校正が完了しました！");
             } catch (e) {
                 showStatus("❌ エラー発生", true);
