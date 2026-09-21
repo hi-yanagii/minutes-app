@@ -55,14 +55,17 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.7 (長時間マップリデュース対応)</span>
+        <span class="app-version">Ver1.8 (中止ボタン対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
     <section>
         <div class="section-header">
             <h2>① 録音データのアップロード & メタデータ入力</h2>
-            <button id="processBtn" class="btn-success" onclick="runAllSteps()" style="padding: 8px 20px; font-size: 0.95em; height: 40px;">🚀 議事録を一括生成・校正する</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="processBtn" class="btn-success" onclick="runAllSteps()" style="padding: 8px 20px; font-size: 0.95em; height: 40px;">🚀 議事録を一括生成・校正する</button>
+                <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="padding: 8px 20px; font-size: 0.95em; height: 40px; display: none;">🛑 中止する</button>
+            </div>
         </div>
 
         <div style="margin-bottom: 15px;">
@@ -162,6 +165,8 @@
     </section>
 
     <script>
+        let abortController = null; // 処理中断用のコントローラー
+
         function showStatus(text, isError = false) {
             const statusEl = document.getElementById('statusMessage');
             statusEl.style.color = isError ? '#d9534f' : '#0066cc';
@@ -441,17 +446,35 @@
 
         async function fetchWithRetry(url, options, retries = 3, delay = 3000) {
             for (let i = 0; i < retries; i++) {
-                const response = await fetch(url, options);
+                // 中断シグナルをoptionsにバインドする
+                const fetchOptions = { ...options, signal: abortController ? abortController.signal : undefined };
+                const response = await fetch(url, fetchOptions);
                 const data = await response.json();
                 
                 if (data.error && (data.error.code === 429 || data.error.code === 503 || data.error.message.includes("high demand"))) {
                     if (i < retries - 1) {
                         showStatus(`サーバー混雑中のため再試行中... (${i+1}/${retries})`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                        await new Promise((resolve, reject) => {
+                            const timer = setTimeout(resolve, delay);
+                            // 待機中にも中断できるようにする
+                            if (abortController) {
+                                abortController.signal.addEventListener('abort', () => {
+                                    clearTimeout(timer);
+                                    reject(new Error('AbortError'));
+                                });
+                            }
+                        });
                         continue;
                     }
                 }
                 return data;
+            }
+        }
+
+        // 処理を途中で中止する関数
+        function cancelProcessing() {
+            if (abortController) {
+                abortController.abort(); // 通信を即座にキャンセル
             }
         }
 
@@ -466,9 +489,13 @@
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
             const processBtn = document.getElementById('processBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
 
-            processBtn.disabled = true;
-            processBtn.textContent = "⏳ 音声解析・分割中...";
+            // 中断コントローラーを初期化
+            abortController = new AbortController();
+
+            processBtn.style.display = 'none';
+            cancelBtn.style.display = 'inline-block';
 
             try {
                 showStatus("音声ファイルをデコード中...");
@@ -506,6 +533,9 @@
 
                 // マップフェーズ：各パートのテキスト化と個別要約
                 for (let i = 0; i < chunks.length; i++) {
+                    // ループごとに中断されているかチェック
+                    if (abortController.signal.aborted) throw new Error('AbortError');
+
                     const partNum = i + 1;
                     showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中...`);
                     
@@ -571,12 +601,18 @@
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（分割・個別要約・統合整形）が完了しました。</div>`;
                 showStatus("✨ 議事録の自動生成・校正が完了しました！");
             } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-                editor.value = "エラーが発生しました。";
+                if (e.message === 'AbortError' || e.name === 'AbortError') {
+                    showStatus("🛑 処理を途中で中止しました。");
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ユーザーの操作により処理を中断しました。</div>`;
+                } else {
+                    showStatus("❌ エラー発生", true);
+                    alert('エラー: ' + e.message);
+                    editor.value = "エラーが発生しました。";
+                }
             } finally {
-                processBtn.disabled = false;
-                processBtn.textContent = "🚀 議事録を一括生成・校正する";
+                abortController = null;
+                cancelBtn.style.display = 'none';
+                processBtn.style.display = 'inline-block';
             }
         }
 
@@ -613,7 +649,9 @@
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、46文字単位で再整形しました。</div>`;
                 history.scrollTop = history.scrollHeight;
             } catch (e) {
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
+                if (e.message !== 'AbortError') {
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
+                }
             }
         }
 
