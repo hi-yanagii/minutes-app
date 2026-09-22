@@ -37,7 +37,7 @@
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
         
         textarea.editor { 
-            height: 350px; 
+            height: 525px; /* テキストエディターの高さを1.5倍に拡張 */
             font-family: monospace; 
             resize: vertical; 
             width: 46em; 
@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.8 (中止ボタン対応版)</span>
+        <span class="app-version">Ver1.9 (エディター拡大・セキュリティ表記対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -69,7 +69,7 @@
         </div>
 
         <div style="margin-bottom: 15px;">
-            <label>Gemini APIキー:</label>
+            <label>Gemini APIキー（セキュリティのため有料版を使用のこと）:</label>
             <input type="password" id="apiKey" placeholder="APIキーを入力（一度入力するとブラウザに保存されます）" style="max-width: 500px;">
         </div>
 
