@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.1 (日付自動取得対応版)</span>
+        <span class="app-version">Ver1.9.2 (日付のみ自動取得対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -82,7 +82,7 @@
         <div class="form-row">
             <div class="form-group">
                 <div style="margin-bottom: 12px;">
-                    <label>日・時間:</label>
+                    <label>日:</label>
                     <input type="text" id="metaDateTime" value="">
                 </div>
                 <div>
@@ -358,14 +358,12 @@
             loadLocationsToSelect();
             loadFormatsToSelect();
             
-            // 本日の日付を YYYY/MM/DD HH:MM 形式で初期設定
+            // 本日の日付を YYYY/MM/DD 形式で初期設定（時間は含めない）
             const now = new Date();
             const yyyy = now.getFullYear();
             const mm = String(now.getMonth() + 1).padStart(2, '0');
             const dd = String(now.getDate()).padStart(2, '0');
-            const hh = String(now.getHours()).padStart(2, '0');
-            const min = String(now.getMinutes()).padStart(2, '0');
-            document.getElementById('metaDateTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+            document.getElementById('metaDateTime').value = `${yyyy}/${mm}/${dd}`;
 
             const savedApiKey = localStorage.getItem('gemini_api_key');
             if(savedApiKey) {
@@ -675,7 +673,7 @@
             const sec = document.getElementById('metaSecretary').value;
             const content = document.getElementById('summaryEditor').value;
 
-            const textOutput = `日時: ${dt}\n場所: ${loc}\n参加者: ${parts}\n書記: ${sec}\n\n${content}`;
+            const textOutput = `日: ${dt}\n場所: ${loc}\n参加者: ${parts}\n書記: ${sec}\n\n${content}`;
             
             navigator.clipboard.writeText(textOutput).then(() => {
                 alert(`フォーマットテキストをクリップボードにコピーしました！`);
@@ -723,6 +721,7 @@
                 });
 
                 doc.render({
+                    日: dt,
                     日時: dt,
                     場所: loc,
                     参加者: parts,
