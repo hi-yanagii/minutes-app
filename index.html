@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9 (エディター拡大・セキュリティ表記対応版)</span>
+        <span class="app-version">Ver1.9.1 (日付自動取得対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -83,7 +83,7 @@
             <div class="form-group">
                 <div style="margin-bottom: 12px;">
                     <label>日・時間:</label>
-                    <input type="text" id="metaDateTime" value="2026-09-15 14:00">
+                    <input type="text" id="metaDateTime" value="">
                 </div>
                 <div>
                     <label>参加者（選択・追加・手入力）:</label>
@@ -357,6 +357,16 @@
             loadParticipantsToSelect();
             loadLocationsToSelect();
             loadFormatsToSelect();
+            
+            // 本日の日付を YYYY/MM/DD HH:MM 形式で初期設定
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('metaDateTime').value = `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+
             const savedApiKey = localStorage.getItem('gemini_api_key');
             if(savedApiKey) {
                 document.getElementById('apiKey').value = savedApiKey;
