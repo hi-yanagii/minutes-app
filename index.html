@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.2 (日付のみ自動取得対応版)</span>
+        <span class="app-version">Ver1.9.3 (行間固定12pt対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -714,6 +714,13 @@
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
                     linebreaks: true,
+                    // 改行およびテキスト挿入時の段落行間を「固定値 12pt」 (w:line="240", w:lineRule="exact") に設定
+                    paragraphProperties: {
+                        spacing: {
+                            line: 240,
+                            lineRule: "exact"
+                        }
+                    },
                     delimiters: {
                         start: '{{',
                         end: '}}'
@@ -743,7 +750,7 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('元のレイアウトを維持したWordファイルのダウンロードが完了しました！');
+                alert('行間を固定値12ptに設定したWordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error("Word生成エラー詳細:", err);
                 let errMsg = err.message || JSON.stringify(err);
