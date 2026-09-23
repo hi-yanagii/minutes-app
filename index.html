@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.3 (行間固定12pt対応版)</span>
+        <span class="app-version">Ver1.9.5 (通常改行・行間固定12pt対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -688,11 +688,15 @@
             const base64Data = formats[formatName];
             if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
 
+            // 画面のテキストエリアおよび入力欄から「完全なリアルタイムの最新値」を取得
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
             const parts = document.getElementById('metaParticipants').value;
             const sec = document.getElementById('metaSecretary').value;
-            const content = document.getElementById('summaryEditor').value;
+            let content = document.getElementById('summaryEditor').value;
+
+            // 改行コードの揺れを正規化し、Word上で強制改行ではなく通常の段落・改行として綺麗に反映させる
+            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
             try {
                 const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
@@ -710,11 +714,12 @@
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
+                // キャッシュ汚染を防ぐため毎回完全に新しいZIPインスタンスとして読み込む
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: true,
-                    // 改行およびテキスト挿入時の段落行間を「固定値 12pt」 (w:line="240", w:lineRule="exact") に設定
+                    linebreaks: true, // 通常の改行として処理を有効化
+                    // 段落行間を「固定値 12pt」 (w:line="240", w:lineRule="exact") に設定
                     paragraphProperties: {
                         spacing: {
                             line: 240,
@@ -727,6 +732,7 @@
                     }
                 });
 
+                // 最新のデータを確実に強制レンダリング
                 doc.render({
                     日: dt,
                     日時: dt,
@@ -750,7 +756,7 @@
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('行間を固定値12ptに設定したWordファイルのダウンロードが完了しました！');
+                alert('最新のエディター内容、通常改行、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error("Word生成エラー詳細:", err);
                 let errMsg = err.message || JSON.stringify(err);
