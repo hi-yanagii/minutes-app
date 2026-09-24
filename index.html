@@ -55,7 +55,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.5 (通常改行・行間固定12pt対応版)</span>
+        <span class="app-version">Ver1.9.6 (時系列ブロック保持対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -572,7 +572,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             contents: [{
-                                parts: [{ text: `以下のテキストデータは、長時間の会議音声のパート${partNum}の文字起こしです。このパートにおける主要な発言内容、決定事項、議論の要点を簡潔にまとめてください。\n\n${partText}` }]
+                                parts: [{ text: `以下のテキストデータは、長時間の会議音声のパート${partNum}の文字起こしです。このパートにおける主要な発言内容、決定事項、議論の要点を時系列順に簡潔にまとめてください。\n\n${partText}` }]
                             }]
                         })
                     });
@@ -587,16 +587,26 @@
                     editor.value = accumulatedRawText; // リアルタイムの進捗プレビュー
                 }
 
-                showStatus("全パートの個別要約完了。全体を統合してビジネス議事録に最終整形中...");
+                showStatus("全パートの個別要約完了。時系列ブロックを維持してビジネス議事録に最終整形中...");
                 
-                // リデュースフェーズ：各パートの要約を統合して最終整形
+                // リデュースフェーズ：各パートの要約を時系列・ブロック単位で統合して最終整形
                 const combinedSummaries = partSummaries.join("\n\n");
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の各パートの要約データをすべて統合し、ビジネス用の議事録形式に最終校正してください。\nルール：\n- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。\n- 途中で省略せず、含まれているすべての議案を漏れなく「議案1」「議案2」などの見出しや区切りを用いてすべて記載する。\n- 名詞化、体現止め、常体表現（だ・である調）を基本とする。\n- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。\n- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。\n- 日時や場所、タイトルは本文に入力しない。\n\n${combinedSummaries}` }]
+                            parts: [{ text: `以下の各パートの要約データをすべて統合し、ビジネス用の議事録形式に最終校正してください。
+【重要ルール】
+- 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのままブロック単位で保持して記載すること。
+- たとえ同じテーマ（例：「安全」など）であっても、会議の異なる時間帯（前半と後半など）で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロック（例：議案1、議案3など）として独立させて記載すること。
+- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。
+- 名詞化、体現止め、常体表現（だ・である調）を基本とする。
+- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。
+- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。
+- 日時や場所、タイトルは本文に入力しない。
+
+${combinedSummaries}` }]
                         }]
                     })
                 });
@@ -606,7 +616,7 @@
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（分割・個別要約・統合整形）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（時系列ブロック維持・個別要約・統合整形）が完了しました。</div>`;
                 showStatus("✨ 議事録の自動生成・校正が完了しました！");
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
@@ -644,7 +654,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、全議案を省略せずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
                         }]
                     })
                 });
