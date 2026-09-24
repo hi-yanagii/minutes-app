@@ -49,13 +49,26 @@
         .chat-msg.user { color: #333; text-align: right; }
         
         #statusMessage { font-size: 0.85em; font-weight: bold; margin-top: 5px; color: #0066cc; min-height: 1.2em; }
+
+        /* 処理中ドットアニメーション用スタイル */
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
     </style>
 </head>
 <body>
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.6 (時系列ブロック保持対応版)</span>
+        <span class="app-version">Ver1.9.7 (処理中アニメーション対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -170,7 +183,13 @@
         function showStatus(text, isError = false) {
             const statusEl = document.getElementById('statusMessage');
             statusEl.style.color = isError ? '#d9534f' : '#0066cc';
-            statusEl.textContent = text;
+            if (isError) {
+                statusEl.classList.remove('loading-dots');
+                statusEl.textContent = text;
+            } else {
+                statusEl.classList.add('loading-dots');
+                statusEl.textContent = text;
+            }
         }
 
         // --- スマート折り返し関数 ---
@@ -506,7 +525,7 @@
             cancelBtn.style.display = 'inline-block';
 
             try {
-                showStatus("音声ファイルをデコード中...");
+                showStatus("音声ファイルをデコード中");
                 const arrayBuffer = await file.arrayBuffer();
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
@@ -535,7 +554,7 @@
                     chunks.push(wavBlob);
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化および個別要約を開始します...`);
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化および個別要約を開始します`);
                 let partSummaries = [];
                 let accumulatedRawText = "";
 
@@ -545,7 +564,7 @@
                     if (abortController.signal.aborted) throw new Error('AbortError');
 
                     const partNum = i + 1;
-                    showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中...`);
+                    showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中`);
                     
                     const audioPart = await blobToGenerativePart(chunks[i]);
                     const dataRes = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -566,7 +585,7 @@
                     accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
 
                     // 各パートの個別要約生成
-                    showStatus(`【パート ${partNum} / ${chunks.length}】 個別要約生成中...`);
+                    showStatus(`【パート ${partNum} / ${chunks.length}】 個別要約生成中`);
                     const dataPartSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -587,7 +606,7 @@
                     editor.value = accumulatedRawText; // リアルタイムの進捗プレビュー
                 }
 
-                showStatus("全パートの個別要約完了。時系列ブロックを維持してビジネス議事録に最終整形中...");
+                showStatus("全パートの個別要約完了。時系列ブロックを維持してビジネス議事録に最終整形中");
                 
                 // リデュースフェーズ：各パートの要約を時系列・ブロック単位で統合して最終整形
                 const combinedSummaries = partSummaries.join("\n\n");
@@ -618,6 +637,7 @@ ${combinedSummaries}` }]
                 editor.value = finalResult;
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（時系列ブロック維持・個別要約・統合整形）が完了しました。</div>`;
                 showStatus("✨ 議事録の自動生成・校正が完了しました！");
+                document.getElementById('statusMessage').classList.remove('loading-dots');
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
