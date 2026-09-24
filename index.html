@@ -68,7 +68,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.7 (処理中アニメーション対応版)</span>
+        <span class="app-version">Ver1.9.8 (QA自動制御・時系列ブロック保持対応版)</span>
     </div>
 
     <!-- ステップ1：音声ファイルとメタデータ -->
@@ -619,9 +619,9 @@
 【重要ルール】
 - 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのままブロック単位で保持して記載すること。
 - たとえ同じテーマ（例：「安全」など）であっても、会議の異なる時間帯（前半と後半など）で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロック（例：議案1、議案3など）として独立させて記載すること。
+- 質疑応答（QA）が存在する場合のみ【質疑応答】またはQ. / A.形式含めること。QAが存在しない話題や議論については無理にQ.やA.の形式に仕立て上げず、通常の記載形式で自然にまとめること。
 - 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。
 - 名詞化、体現止め、常体表現（だ・である調）を基本とする。
-- 各議案における主要な質疑応答を【質疑応答】またはQ. / A.形式として必ず含めてまとめる。
 - #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。
 - 日時や場所、タイトルは本文に入力しない。
 
@@ -635,7 +635,7 @@ ${combinedSummaries}` }]
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（時系列ブロック維持・個別要約・統合整形）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（時系列ブロック維持・QA自動制御・統合整形）が完了しました。</div>`;
                 showStatus("✨ 議事録の自動生成・校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
             } catch (e) {
@@ -674,7 +674,7 @@ ${combinedSummaries}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さず、QAがない場合は無理にQAを作らずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
                         }]
                     })
                 });
