@@ -2,105 +2,801 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>テキスト要約インターフェイス</title>
+    <title>議事録くん！！（15分自動分割・マップリデュース対応版）</title>
+    <!-- 安定性の高いjsDelivr CDNを使用 -->
+    <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
     <style>
-        body {
-            font-family: sans-serif;
-            margin: 30px;
-            background-color: #f4f6f8;
-            color: #333;
+        body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
+        .header-container { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
+        h1 { margin: 0; }
+        .app-version { font-size: 0.85em; color: #666; font-weight: normal; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
+        section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0066cc; padding-bottom: 5px; margin-bottom: 15px; }
+        h2 { font-size: 1.1em; margin: 0; border: none; padding: 0; }
+        .form-row { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 250px; }
+        label { display: block; font-size: 0.85em; font-weight: bold; margin-bottom: 3px; }
+        input, select, textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        
+        .input-container { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
+        .input-container select { flex: 1; margin: 0; }
+        .input-container button { white-space: nowrap; flex-shrink: 0; }
+
+        button { background: #0066cc; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 36px; }
+        button:hover { background: #004999; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #d9534f; }
+        .btn-danger:hover { background: #c9302c; }
+        
+        .workspace { display: flex; gap: 20px; }
+        .pane { flex: 1; display: flex; flex-direction: column; }
+        
+        .chat-box { height: 250px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; overflow-y: auto; background: #fafafa; margin-bottom: 10px; font-size: 0.9em; }
+        textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
+        
+        textarea.editor { 
+            height: 525px; /* テキストエディターの高さを1.5倍に拡張 */
+            font-family: monospace; 
+            resize: vertical; 
+            width: 46em; 
+            box-sizing: content-box; 
         }
-        .container {
-            max-width: 700px;
-            margin: auto;
-            background: #ffffff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+        .chat-msg { margin-bottom: 8px; line-height: 1.4; }
+        .chat-msg.ai { color: #0066cc; }
+        .chat-msg.user { color: #333; text-align: right; }
+        
+        #statusMessage { font-size: 0.85em; font-weight: bold; margin-top: 5px; color: #0066cc; min-height: 1.2em; }
+
+        /* 処理中ドットアニメーション用スタイル */
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
         }
-        h2 {
-            margin-top: 0;
-            color: #2c3e50;
-        }
-        p {
-            font-size: 14px;
-            color: #555;
-        }
-        textarea {
-            width: 100%;
-            height: 180px;
-            margin-bottom: 15px;
-            padding: 12px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-            resize: vertical;
-        }
-        /* 要約ボタン */
-        .summary-btn {
-            background-color: #2b6cb0;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .summary-btn:hover {
-            background-color: #2c5282;
-        }
-        .result-section {
-            margin-top: 25px;
-        }
-        .result-box {
-            background: #edf2f7;
-            padding: 15px;
-            border-radius: 4px;
-            border-left: 4px solid #2b6cb0;
-            min-height: 80px;
-            white-space: pre-wrap;
-            font-size: 14px;
-            line-height: 1.6;
+        @keyframes dots {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>音声テキスト要約ツール</h2>
-        <p>テキスト化された文章を入力し、<strong>「要約する」ボタン</strong>を押してください。（時系列を優先し、通常の自然な文章で出力します）</p>
-        
-        <textarea id="inputText" placeholder="ここにテキストを入力または貼り付けてください..."></textarea>
-        
-        <div>
-            <button id="summaryButton" class="summary-btn">要約する</button>
-        </div>
-
-        <div class="result-section">
-            <h3>要約結果</h3>
-            <div id="resultArea" class="result-box">ここに要約結果が表示されます...</div>
-        </div>
+    <div class="header-container">
+        <h1>議事録くん！！</h1>
+        <span class="app-version">Ver1.9.8 (QA自動制御・時系列ブロック保持対応版)</span>
     </div>
 
+    <!-- ステップ1：音声ファイルとメタデータ -->
+    <section>
+        <div class="section-header">
+            <h2>① 録音データのアップロード & メタデータ入力</h2>
+            <div style="display: flex; gap: 10px;">
+                <button id="processBtn" class="btn-success" onclick="runAllSteps()" style="padding: 8px 20px; font-size: 0.95em; height: 40px;">🚀 議事録を一括生成・校正する</button>
+                <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="padding: 8px 20px; font-size: 0.95em; height: 40px; display: none;">🛑 中止する</button>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label>Gemini APIキー（セキュリティのため有料版を使用のこと）:</label>
+            <input type="password" id="apiKey" placeholder="APIキーを入力（一度入力するとブラウザに保存されます）" style="max-width: 500px;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label>音声ファイル（mp3, m4a, wav等 ※1時間半などの長時間の音声対応）:</label>
+            <input type="file" id="audioFile" accept="audio/*">
+            <div id="statusMessage"></div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <div style="margin-bottom: 12px;">
+                    <label>日:</label>
+                    <input type="text" id="metaDateTime" value="">
+                </div>
+                <div>
+                    <label>参加者（選択・追加・手入力）:</label>
+                    <div class="input-container">
+                        <select id="participantPreset" onchange="applyParticipantPreset()">
+                            <option value="">-- 登録パターンから選択 --</option>
+                        </select>
+                        <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()">今のメンバーを登録</button>
+                        <button type="button" class="btn-danger" onclick="deleteSelectedParticipantPreset()">🗑️ 削除</button>
+                    </div>
+                    <input type="text" id="metaParticipants" value="" placeholder="例: 山田, 山根 または 直接入力">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div style="margin-bottom: 12px;">
+                    <label>場所（選択・追加・手入力）:</label>
+                    <div class="input-container">
+                        <select id="locationPreset" onchange="applyLocationPreset()">
+                            <option value="">-- 登録場所から選択 --</option>
+                        </select>
+                        <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()">今の場所を登録</button>
+                        <button type="button" class="btn-danger" onclick="deleteSelectedLocationPreset()">🗑️ 削除</button>
+                    </div>
+                    <input type="text" id="metaLocation" value="" placeholder="例: 第1会議室 または 直接入力">
+                </div>
+                <div>
+                    <label>書記:</label>
+                    <input type="text" id="metaSecretary" value="柳井">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ステップ2：プレビュー編集 & AI対話修正 -->
+    <section>
+        <h2>② AI対話による修正 & テキスト直接編集</h2>
+        <div class="workspace">
+            <div class="pane">
+                <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
+                <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
+            </div>
+            <div class="pane">
+                <label>Geminiチャット（AIと対話して修正）:</label>
+                <div id="chatHistory" class="chat-box">
+                    <div class="chat-msg ai"><b>[AI]:</b> 音声ファイルを読み込み、上の「一括生成・校正する」ボタンを押してください。</div>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: flex-end;">
+                    <textarea id="chatInput" class="chat-input" placeholder="例: 専門用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
+                    <button id="sendBtn" onclick="sendChatMessage()" style="height: 90px;">送信</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ステップ3：フォーマット出力 -->
+    <section>
+        <h2>③ 最終出力</h2>
+        <div style="margin-bottom: 15px;">
+            <label>出力フォーマットの登録（Wordファイルをアップロード）:</label>
+            <div class="input-container" style="margin-bottom: 8px;">
+                <input type="file" id="formatDocFile" accept=".docx" style="flex: 1; padding: 5px;">
+                <button type="button" class="btn-success" onclick="uploadFormatDocument()">Wordをフォーマットとして覚える</button>
+            </div>
+            
+            <label>出力フォーマット選択（※デフォルト設定なし）:</label>
+            <div class="input-container">
+                <select id="formatTemplate">
+                    <option value="">-- フォーマットを選択してください --</option>
+                </select>
+                <button type="button" class="btn-danger" onclick="deleteSelectedFormatTemplate()">🗑️ 選択中のフォーマットを削除</button>
+            </div>
+        </div>
+        <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="generateFinalOutput()" class="btn-success" style="flex: 1;">📋 テキストでクリップボードにコピー</button>
+            <button onclick="downloadWordDocument()" style="flex: 1; background: #d9534f;">💾 元のレイアウトを維持してWordダウンロード</button>
+        </div>
+    </section>
+
     <script>
-        document.getElementById('summaryButton').addEventListener('click', () => {
-            const text = document.getElementById('inputText').value.trim();
-            
-            if (!text) {
-                alert('要約するテキストを入力してください。');
-                return;
+        let abortController = null; // 処理中断用のコントローラー
+
+        function showStatus(text, isError = false) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.style.color = isError ? '#d9534f' : '#0066cc';
+            if (isError) {
+                statusEl.classList.remove('loading-dots');
+                statusEl.textContent = text;
+            } else {
+                statusEl.classList.add('loading-dots');
+                statusEl.textContent = text;
             }
+        }
 
-            // 時系列優先・体言止め/名詞化なしの要約処理をここに組み込みます（API連携など）
-            // サンプルとしての動作表示
-            const summaryResult = `【時系列要約（通常文体）】\n${text}\n\n（※ここに時系列の流れに沿った自然な文章の要約が出力されます）`;
+        // --- スマート折り返し関数 ---
+        function wrapTextByLength(str, maxLen = 46) {
+            if (!str) return "";
+            const lines = str.split('\n');
+            let wrappedLines = [];
             
-            document.getElementById('resultArea').textContent = summaryResult;
-        });
-    </script>
+            for (let line of lines) {
+                if (line.length <= maxLen) {
+                    wrappedLines.push(line);
+                } else {
+                    let currentLine = line;
+                    while (currentLine.length > maxLen) {
+                        let breakIdx = maxLen;
+                        let subStr = currentLine.substring(0, maxLen + 1);
+                        let lastSpace = Math.max(
+                            subStr.lastIndexOf('、'), 
+                            subStr.lastIndexOf('。'), 
+                            subStr.lastIndexOf(' '), 
+                            subStr.lastIndexOf('（'),
+                            subStr.lastIndexOf('・')
+                        );
+                        
+                        if (lastSpace > maxLen * 0.6) {
+                            breakIdx = lastSpace + 1;
+                        }
+                        
+                        wrappedLines.push(currentLine.substring(0, breakIdx));
+                        currentLine = currentLine.substring(breakIdx);
+                    }
+                    if (currentLine.length > 0) {
+                        wrappedLines.push(currentLine);
+                    }
+                }
+            }
+            return wrappedLines.join('\n');
+        }
 
+        const PART_STORAGE_KEY = 'minutes_participant_presets';
+        function getParticipants() {
+            const saved = localStorage.getItem(PART_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        }
+        function loadParticipantsToSelect() {
+            const select = document.getElementById('participantPreset');
+            const items = getParticipants();
+            select.innerHTML = '<option value="">-- 登録パターンから選択 --</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
+        function saveCurrentAsParticipantPreset() {
+            const currentVal = document.getElementById('metaParticipants').value.trim();
+            if (!currentVal) { alert('参加者欄が空です。'); return; }
+            const items = getParticipants();
+            if (!items.includes(currentVal)) {
+                items.push(currentVal);
+                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
+                loadParticipantsToSelect();
+                alert(`「${currentVal}」を参加者パターンとして記憶しました！`);
+            } else {
+                alert('このメンバー構成はすでに登録されています。');
+            }
+        }
+        function deleteSelectedParticipantPreset() {
+            const select = document.getElementById('participantPreset');
+            const val = select.value;
+            if (!val) { alert('削除する参加者パターンを選択してください。'); return; }
+            if (confirm(`「${val}」を登録データから削除しますか？`)) {
+                let items = getParticipants();
+                items = items.filter(i => i !== val);
+                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
+                loadParticipantsToSelect();
+                alert('削除しました。');
+            }
+        }
+        function applyParticipantPreset() {
+            const select = document.getElementById('participantPreset');
+            const input = document.getElementById('metaParticipants');
+            if (select.value) input.value = select.value;
+        }
+
+        const LOC_STORAGE_KEY = 'minutes_location_presets';
+        function getLocations() {
+            const saved = localStorage.getItem(LOC_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        }
+        function loadLocationsToSelect() {
+            const select = document.getElementById('locationPreset');
+            const items = getLocations();
+            select.innerHTML = '<option value="">-- 登録場所から選択 --</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
+        function saveCurrentAsLocationPreset() {
+            const currentVal = document.getElementById('metaLocation').value.trim();
+            if (!currentVal) { alert('場所欄が空です。'); return; }
+            const items = getLocations();
+            if (!items.includes(currentVal)) {
+                items.push(currentVal);
+                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
+                loadLocationsToSelect();
+                alert(`「${currentVal}」を場所として記憶しました！`);
+            } else {
+                alert('この場所はすでに登録されています。');
+            }
+        }
+        function deleteSelectedLocationPreset() {
+            const select = document.getElementById('locationPreset');
+            const val = select.value;
+            if (!val) { alert('削除する場所を選択してください。'); return; }
+            if (confirm(`「${val}」を登録データから削除しますか？`)) {
+                let items = getLocations();
+                items = items.filter(i => i !== val);
+                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
+                loadLocationsToSelect();
+                alert('削除しました。');
+            }
+        }
+        function applyLocationPreset() {
+            const select = document.getElementById('locationPreset');
+            const input = document.getElementById('metaLocation');
+            if (select.value) input.value = select.value;
+        }
+
+        const FORMAT_STORAGE_KEY = 'minutes_format_templates_base64';
+        function getFormats() {
+            const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {};
+        }
+        function loadFormatsToSelect() {
+            const select = document.getElementById('formatTemplate');
+            const formats = getFormats();
+            select.innerHTML = '<option value="">-- フォーマットを選択してください --</option>';
+            Object.keys(formats).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = `【カスタム】 ${name}`;
+                select.appendChild(option);
+            });
+        }
+
+        function uploadFormatDocument() {
+            const fileInput = document.getElementById('formatDocFile');
+            const file = fileInput.files[0];
+            if (!file) { alert('登録するWordファイル(.docx)を選択してください。'); return; }
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64Data = event.target.result;
+                const formatName = file.name.replace(/\.[^/.]+$/, "");
+                const formats = getFormats();
+                formats[formatName] = base64Data;
+                localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
+                loadFormatsToSelect();
+                document.getElementById('formatTemplate').value = formatName;
+                alert(`Wordファイル「${file.name}」のレイアウトをテンプレートとして記憶しました！`);
+                fileInput.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function deleteSelectedFormatTemplate() {
+            const select = document.getElementById('formatTemplate');
+            const formatName = select.value;
+            if (!formatName) { alert('削除するフォーマットを選択してください。'); return; }
+            if (confirm(`フォーマット「${formatName}」を削除しますか？`)) {
+                let formats = getFormats();
+                delete formats[formatName];
+                localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
+                loadFormatsToSelect();
+                alert('削除しました。');
+            }
+        }
+
+        window.onload = function() {
+            loadParticipantsToSelect();
+            loadLocationsToSelect();
+            loadFormatsToSelect();
+            
+            // 本日の日付を YYYY/MM/DD 形式で初期設定（時間は含めない）
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            document.getElementById('metaDateTime').value = `${yyyy}/${mm}/${dd}`;
+
+            const savedApiKey = localStorage.getItem('gemini_api_key');
+            if(savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+            }
+        };
+
+        function getApiKey() {
+            const key = document.getElementById('apiKey').value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+            }
+            return key;
+        }
+
+        // 音声データをWAV Blobに変換するヘルパー関数
+        function audioBufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+            
+            const samples = buffer.length;
+            const blockAlign = (numOfChan * bitDepth) / 8;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = samples * blockAlign;
+            const bufferSize = 44 + dataSize;
+            
+            const arrayBuffer = new ArrayBuffer(bufferSize);
+            const view = new DataView(arrayBuffer);
+            
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(view, 8, 'WAVE');
+            
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numOfChan, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+            
+            const channels = [];
+            for (let i = 0; i < numOfChan; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+            
+            let offset = 44;
+            for (let i = 0; i < samples; i++) {
+                for (let channel = 0; channel < numOfChan; channel++) {
+                    let sample = Math.max(-1, Math.min(1, channels[channel][i]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        async function blobToGenerativePart(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64Data = reader.result.split(',')[1];
+                    resolve({
+                        inlineData: {
+                            data: base64Data,
+                            mimeType: blob.type || "audio/wav"
+                        }
+                    });
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        async function fetchWithRetry(url, options, retries = 3, delay = 3000) {
+            for (let i = 0; i < retries; i++) {
+                // 中断シグナルをoptionsにバインドする
+                const fetchOptions = { ...options, signal: abortController ? abortController.signal : undefined };
+                const response = await fetch(url, fetchOptions);
+                const data = await response.json();
+                
+                if (data.error && (data.error.code === 429 || data.error.code === 503 || data.error.message.includes("high demand"))) {
+                    if (i < retries - 1) {
+                        showStatus(`サーバー混雑中のため再試行中... (${i+1}/${retries})`);
+                        await new Promise((resolve, reject) => {
+                            const timer = setTimeout(resolve, delay);
+                            // 待機中にも中断できるようにする
+                            if (abortController) {
+                                abortController.signal.addEventListener('abort', () => {
+                                    clearTimeout(timer);
+                                    reject(new Error('AbortError'));
+                                });
+                            }
+                        });
+                        continue;
+                    }
+                }
+                return data;
+            }
+        }
+
+        // 処理を途中で中止する関数
+        function cancelProcessing() {
+            if (abortController) {
+                abortController.abort(); // 通信を即座にキャンセル
+            }
+        }
+
+        // --- マップ・リデュース方式を採用した長時間処理関数 ---
+        async function runAllSteps() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            const fileInput = document.getElementById('audioFile');
+            const file = fileInput.files[0];
+            if (!file) { alert('音声ファイルを選択してください。'); return; }
+
+            const editor = document.getElementById('summaryEditor');
+            const history = document.getElementById('chatHistory');
+            const processBtn = document.getElementById('processBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+
+            // 中断コントローラーを初期化
+            abortController = new AbortController();
+
+            processBtn.style.display = 'none';
+            cancelBtn.style.display = 'inline-block';
+
+            try {
+                showStatus("音声ファイルをデコード中");
+                const arrayBuffer = await file.arrayBuffer();
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
+
+                const duration = decodedAudio.duration; // 秒数
+                const chunkDuration = 900; // 15分 (900秒)
+                const chunks = [];
+
+                for (let start = 0; start < duration; start += chunkDuration) {
+                    const end = Math.min(start + chunkDuration, duration);
+                    const sampleRate = decodedAudio.sampleRate;
+                    const startSample = Math.floor(start * sampleRate);
+                    const endSample = Math.floor(end * sampleRate);
+                    const length = endSample - startSample;
+
+                    const slicedBuffer = audioCtx.createBuffer(decodedAudio.numberOfChannels, length, sampleRate);
+                    for (let c = 0; c < decodedAudio.numberOfChannels; c++) {
+                        const channelData = decodedAudio.getChannelData(c);
+                        const slicedChannelData = slicedBuffer.getChannelData(c);
+                        for (let j = 0; j < length; j++) {
+                            slicedChannelData[j] = channelData[startSample + j];
+                        }
+                    }
+
+                    const wavBlob = audioBufferToWav(slicedBuffer);
+                    chunks.push(wavBlob);
+                }
+
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化および個別要約を開始します`);
+                let partSummaries = [];
+                let accumulatedRawText = "";
+
+                // マップフェーズ：各パートのテキスト化と個別要約
+                for (let i = 0; i < chunks.length; i++) {
+                    // ループごとに中断されているかチェック
+                    if (abortController.signal.aborted) throw new Error('AbortError');
+
+                    const partNum = i + 1;
+                    showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中`);
+                    
+                    const audioPart = await blobToGenerativePart(chunks[i]);
+                    const dataRes = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    audioPart,
+                                    { text: `【指示】これは長時間の音声のパート${partNum}です。この音声の発言内容を正確なテキスト文字列に変換してください。音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
+                                ]
+                            }]
+                        })
+                    });
+
+                    if (dataRes.error) throw new Error(dataRes.error.message);
+                    const partText = dataRes.candidates[0].content.parts[0].text;
+                    accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
+
+                    // 各パートの個別要約生成
+                    showStatus(`【パート ${partNum} / ${chunks.length}】 個別要約生成中`);
+                    const dataPartSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: `以下のテキストデータは、長時間の会議音声のパート${partNum}の文字起こしです。このパートにおける主要な発言内容、決定事項、議論の要点を時系列順に簡潔にまとめてください。\n\n${partText}` }]
+                            }]
+                        })
+                    });
+
+                    if (!dataPartSummary.error && dataPartSummary.candidates && dataPartSummary.candidates[0]) {
+                        const pSum = dataPartSummary.candidates[0].content.parts[0].text;
+                        partSummaries.push(`[パート ${partNum} の要約]\n${pSum}`);
+                    } else {
+                        partSummaries.push(`[パート ${partNum} の要約]\n${partText}`);
+                    }
+
+                    editor.value = accumulatedRawText; // リアルタイムの進捗プレビュー
+                }
+
+                showStatus("全パートの個別要約完了。時系列ブロックを維持してビジネス議事録に最終整形中");
+                
+                // リデュースフェーズ：各パートの要約を時系列・ブロック単位で統合して最終整形
+                const combinedSummaries = partSummaries.join("\n\n");
+                const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下の各パートの要約データをすべて統合し、ビジネス用の議事録形式に最終校正してください。
+【重要ルール】
+- 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのままブロック単位で保持して記載すること。
+- たとえ同じテーマ（例：「安全」など）であっても、会議の異なる時間帯（前半と後半など）で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロック（例：議案1、議案3など）として独立させて記載すること。
+- 質疑応答（QA）が存在する場合のみ【質疑応答】またはQ. / A.形式含めること。QAが存在しない話題や議論については無理にQ.やA.の形式に仕立て上げず、通常の記載形式で自然にまとめること。
+- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。
+- 名詞化、体現止め、常体表現（だ・である調）を基本とする。
+- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。
+- 日時や場所、タイトルは本文に入力しない。
+
+${combinedSummaries}` }]
+                        }]
+                    })
+                });
+                if (dataFinal.error) throw new Error(dataFinal.error.message);
+                
+                let finalResult = dataFinal.candidates[0].content.parts[0].text;
+                finalResult = wrapTextByLength(finalResult, 46);
+
+                editor.value = finalResult;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（時系列ブロック維持・QA自動制御・統合整形）が完了しました。</div>`;
+                showStatus("✨ 議事録の自動生成・校正が完了しました！");
+                document.getElementById('statusMessage').classList.remove('loading-dots');
+            } catch (e) {
+                if (e.message === 'AbortError' || e.name === 'AbortError') {
+                    showStatus("🛑 処理を途中で中止しました。");
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ユーザーの操作により処理を中断しました。</div>`;
+                } else {
+                    showStatus("❌ エラー発生", true);
+                    alert('エラー: ' + e.message);
+                    editor.value = "エラーが発生しました。";
+                }
+            } finally {
+                abortController = null;
+                cancelBtn.style.display = 'none';
+                processBtn.style.display = 'inline-block';
+            }
+        }
+
+        async function sendChatMessage() {
+            const apiKey = getApiKey();
+            if(!apiKey) { alert('APIキーを入力してください。'); return; }
+
+            const input = document.getElementById('chatInput');
+            const history = document.getElementById('chatHistory');
+            const editor = document.getElementById('summaryEditor');
+            
+            if(!input.value.trim()) return;
+            const userText = input.value;
+            history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b><br>${userText.replace(/\n/g, '<br>')}</div>`;
+            input.value = '';
+            history.scrollTop = history.scrollHeight;
+
+            try {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さず、QAがない場合は無理にQAを作らずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                        }]
+                    })
+                });
+
+                if (data.error) throw new Error(data.error.message);
+                let updatedText = data.candidates[0].content.parts[0].text;
+                updatedText = wrapTextByLength(updatedText, 46);
+
+                editor.value = updatedText;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、46文字単位で再整形しました。</div>`;
+                history.scrollTop = history.scrollHeight;
+            } catch (e) {
+                if (e.message !== 'AbortError') {
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
+                }
+            }
+        }
+
+        function generateFinalOutput() {
+            const formatName = document.getElementById('formatTemplate').value;
+            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
+
+            const dt = document.getElementById('metaDateTime').value;
+            const loc = document.getElementById('metaLocation').value;
+            const parts = document.getElementById('metaParticipants').value;
+            const sec = document.getElementById('metaSecretary').value;
+            const content = document.getElementById('summaryEditor').value;
+
+            const textOutput = `日: ${dt}\n場所: ${loc}\n参加者: ${parts}\n書記: ${sec}\n\n${content}`;
+            
+            navigator.clipboard.writeText(textOutput).then(() => {
+                alert(`フォーマットテキストをクリップボードにコピーしました！`);
+            });
+        }
+
+        async function downloadWordDocument() {
+            const formatName = document.getElementById('formatTemplate').value;
+            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
+
+            const formats = getFormats();
+            const base64Data = formats[formatName];
+            if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
+
+            // 画面のテキストエリアおよび入力欄から「完全なリアルタイムの最新値」を取得
+            const dt = document.getElementById('metaDateTime').value;
+            const loc = document.getElementById('metaLocation').value;
+            const parts = document.getElementById('metaParticipants').value;
+            const sec = document.getElementById('metaSecretary').value;
+            let content = document.getElementById('summaryEditor').value;
+
+            // 改行コードの揺れを正規化し、Word上で強制改行ではなく通常の段落・改行として綺麗に反映させる
+            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+            try {
+                const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
+                const DocxLib = window.docxtemplater;
+
+                if (!ZipLib || !DocxLib) {
+                    throw new Error("PizZipまたはDocxtemplaterライブラリが読み込まれていません。");
+                }
+
+                const base64String = base64Data.split(',')[1];
+                const binaryString = atob(base64String);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // キャッシュ汚染を防ぐため毎回完全に新しいZIPインスタンスとして読み込む
+                const zip = new ZipLib(bytes.buffer);
+                const doc = new DocxLib(zip, {
+                    paragraphLoop: true,
+                    linebreaks: true, // 通常の改行として処理を有効化
+                    // 段落行間を「固定値 12pt」 (w:line="240", w:lineRule="exact") に設定
+                    paragraphProperties: {
+                        spacing: {
+                            line: 240,
+                            lineRule: "exact"
+                        }
+                    },
+                    delimiters: {
+                        start: '{{',
+                        end: '}}'
+                    }
+                });
+
+                // 最新のデータを確実に強制レンダリング
+                doc.render({
+                    日: dt,
+                    日時: dt,
+                    場所: loc,
+                    参加者: parts,
+                    書記: sec,
+                    本文: content,
+                    要約: content
+                });
+
+                const out = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                });
+
+                const url = window.URL.createObjectURL(out);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `議事録_${dt.replace(/[:\s]/g, '-')}.docx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                alert('最新のエディター内容、通常改行、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
+            } catch (err) {
+                console.error("Word生成エラー詳細:", err);
+                let errMsg = err.message || JSON.stringify(err);
+                if (err.properties && err.properties.errors) {
+                    const docxErrs = err.properties.errors.map(e => e.message || JSON.stringify(e)).join(' / ');
+                    errMsg += " [詳細: " + docxErrs + "]";
+                }
+                alert('Wordファイルの生成に失敗しました: ' + errMsg);
+            }
+        }
+    </script>
 </body>
 </html>
