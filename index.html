@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.14）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.15）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.14</span>
+        <span class="app-version">Ver2.0.15</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -137,6 +137,19 @@
             </div>
         </details>
         
+        <!-- 【ご要望④】位置：専門用語と日の間に追加配置した会議名入力エリア -->
+        <div style="margin-bottom: 15px; background: #f0f7f4; padding: 12px; border-radius: 6px; border: 1px solid #c8e6c9;">
+            <label>会議名（選択・追加・手入力）:</label>
+            <div class="input-container" style="margin-bottom: 6px;">
+                <select id="meetingNamePreset" onchange="applyMeetingNamePreset()">
+                    <option value="">-- 登録会議名から選択 --</option>
+                </select>
+                <button type="button" class="btn-success" onclick="saveCurrentAsMeetingNamePreset()">今の会議名を登録</button>
+                <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️ 削除</button>
+            </div>
+            <input type="text" id="metaMeetingName" value="" placeholder="例: 品質安全月例会議 または 直接入力">
+        </div>
+
         <div class="form-row">
             <div class="form-group">
                 <div style="margin-bottom: 12px;">
@@ -233,7 +246,7 @@
                 <button type="button" class="btn-danger" onclick="deleteSelectedFormatTemplate()">🗑️ 選択中のフォーマットを削除</button>
             </div>
         </div>
-        <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
+        <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。（差し込みタグ: {{会議名}}, {{日時}}, {{場所}}, {{参加者}}, {{書記}}, {{本文}}）</p>
         <div>
             <button class="btn-success" onclick="downloadWordDocument()" style="width: 100%; height: 44px; font-size: 1.05em;">💾 ステップ4：元のレイアウトを維持してWordダウンロード</button>
         </div>
@@ -415,6 +428,55 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // --- 会議名プリセット管理（参加者と同様の記憶・選択・削除機能） ---
+        const MEETING_NAME_STORAGE_KEY = 'minutes_meeting_name_presets';
+        function getMeetingNames() {
+            const saved = localStorage.getItem(MEETING_NAME_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        }
+        function loadMeetingNamesToSelect() {
+            const select = document.getElementById('meetingNamePreset');
+            const items = getMeetingNames();
+            select.innerHTML = '<option value="">-- 登録会議名から選択 --</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
+        function saveCurrentAsMeetingNamePreset() {
+            const currentVal = document.getElementById('metaMeetingName').value.trim();
+            if (!currentVal) { alert('会議名欄が空です。'); return; }
+            const items = getMeetingNames();
+            if (!items.includes(currentVal)) {
+                items.push(currentVal);
+                localStorage.setItem(MEETING_NAME_STORAGE_KEY, JSON.stringify(items));
+                loadMeetingNamesToSelect();
+                alert(`「${currentVal}」を会議名パターンとして記憶しました！`);
+            } else {
+                alert('この会議名はすでに登録されています。');
+            }
+        }
+        function deleteSelectedMeetingNamePreset() {
+            const select = document.getElementById('meetingNamePreset');
+            const val = select.value;
+            if (!val) { alert('削除する会議名を選択してください。'); return; }
+            if (confirm(`会議名「${val}」を登録データから削除しますか？`)) {
+                let items = getMeetingNames();
+                items = items.filter(i => i !== val);
+                localStorage.setItem(MEETING_NAME_STORAGE_KEY, JSON.stringify(items));
+                loadMeetingNamesToSelect();
+                alert('削除しました。');
+            }
+        }
+        function applyMeetingNamePreset() {
+            const select = document.getElementById('meetingNamePreset');
+            const input = document.getElementById('metaMeetingName');
+            if (select.value) input.value = select.value;
+        }
+
+        // --- 参加者プリセット管理 ---
         const PART_STORAGE_KEY = 'minutes_participant_presets';
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
@@ -462,6 +524,7 @@
             if (select.value) input.value = select.value;
         }
 
+        // --- 場所プリセット管理 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
@@ -509,6 +572,7 @@
             if (select.value) input.value = select.value;
         }
 
+        // --- フォーマットテンプレート管理 ---
         const FORMAT_STORAGE_KEY = 'minutes_format_templates_base64';
         function getFormats() {
             const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
@@ -559,6 +623,7 @@
         }
 
         window.onload = function() {
+            loadMeetingNamesToSelect();
             loadParticipantsToSelect();
             loadLocationsToSelect();
             loadFormatsToSelect();
@@ -763,7 +828,7 @@
 - 音声を聞き取り、聞こえた内容をそのまま忠実に文字起こししてください。
 - 「はい、ご指示に従い…」や挨拶、前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
 - 登録された専門用語辞書の適用以外は、AI側で前後の文脈から勝手に意味を推測して言葉を書き換えたり美化したりしないこと。
-- 聞き取りづらい部分や曖昧な部分は勝手に推測せず、「【××××××文字化不可××××××】」と厳密に記載すること。
+- 聞き取りづらい部分や曖昧な部分は勝手に推測せず、「【音声不明瞭・聞き取り不能】」と厳密に記載すること。
 ${termPromptSection}` }
                                 ]
                             }]
@@ -995,7 +1060,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能 ---
+        // --- ステップ4：Wordダウンロード機能（※会議名タグ {{会議名}} にも対応） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1004,6 +1069,7 @@ ${currentText}` }]
             const base64Data = formats[formatName];
             if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
 
+            const meetingName = document.getElementById('metaMeetingName').value;
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
             const parts = document.getElementById('metaParticipants').value;
@@ -1045,6 +1111,8 @@ ${currentText}` }]
                 });
 
                 doc.render({
+                    会議名: meetingName,
+                    会議: meetingName,
                     日: dt,
                     日時: dt,
                     場所: loc,
