@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.3）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.4）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -77,7 +77,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.3</span>
+        <span class="app-version">Ver2.0.4</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -636,7 +636,7 @@
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（Q/A/要望・指示形式の適用） ---
+        // --- ステップ3：時系列ブロック統合・整形（Q/A/要望・指示形式 & 46文字幅維持） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -656,7 +656,7 @@
             }
 
             try {
-                showStatus("製造会社会議の文脈に沿って時系列ブロックを統合し、Q/A/要望形式に整理中");
+                showStatus("製造会社会議の文脈に沿って時系列ブロックを統合し、Q/A形式に整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -678,6 +678,7 @@ A: [回答内容]
 - 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」と記載すること。
 - #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。
 - 日時や場所、タイトルは本文に入力しない。
+- 全角46文字幅での折り返しを維持すること（不自然な短い位置で改行しないこと）。
 
 ${targetText}` }]
                         }]
@@ -698,7 +699,7 @@ ${targetText}` }]
             }
         }
 
-        // --- QA集約ボタン：文章の後半に時系列順に移動させる ---
+        // --- QA集約ボタン：文章の後半に時系列順に移動させる（46文字幅維持） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -730,7 +731,7 @@ A: [回答内容]
 - 前半の各議案の本体部分からは散らばったQAや要望を整理し、後半に集約すること。
 - もし会議全体を通じてQAや要望が一切存在しない場合は、無理に作らず元の構造を維持すること。
 - #や*などの記号は使用しないこと。
-- 46文字幅の折り返しを維持すること。
+- 全角46文字幅での折り返しを厳守すること（途中で不自然に改行しないこと）。
 
 現在の議事録案:
 ${currentText}` }]
@@ -745,7 +746,7 @@ ${currentText}` }]
                 editor.value = updatedText;
                 showStatus("✨ QA・要望集約（後半へのまとめ）が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望・指示を文章の後半に時系列順に集約しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望・指示を文章の後半に時系列順に集約しました（46文字幅整列）。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -780,7 +781,7 @@ ${currentText}` }]
 - 「Q: / A: / 要望・指示：」の形式がある場合はその構造を崩さずに維持すること。
 - 時系列の順番やブロックの並び順は一切崩さないこと。
 - #や*などのMarkdown記号は使用せず、改行や①②③や・を用いてすっきりとまとめること。
-- 46文字幅の折り返しを維持すること。
+- 全角46文字幅での折り返しを維持すること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -823,7 +824,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造（Q/A/要望・指示形式など）を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造（Q/A/要望・指示形式など）を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用せず、全角46文字幅の折り返しを維持してください。` }]
                         }]
                     })
                 });
