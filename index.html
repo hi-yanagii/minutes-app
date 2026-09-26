@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.15）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.16）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.15</span>
+        <span class="app-version">Ver2.0.16</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -137,55 +137,60 @@
             </div>
         </details>
         
-        <!-- 【ご要望④】位置：専門用語と日の間に追加配置した会議名入力エリア -->
-        <div style="margin-bottom: 15px; background: #f0f7f4; padding: 12px; border-radius: 6px; border: 1px solid #c8e6c9;">
-            <label>会議名（選択・追加・手入力）:</label>
-            <div class="input-container" style="margin-bottom: 6px;">
-                <select id="meetingNamePreset" onchange="applyMeetingNamePreset()">
-                    <option value="">-- 登録会議名から選択 --</option>
-                </select>
-                <button type="button" class="btn-success" onclick="saveCurrentAsMeetingNamePreset()">今の会議名を登録</button>
-                <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️ 削除</button>
+        <!-- 【ご要望反映レイアウト】ご提示いただいた画像デザイン通りの配置 -->
+        <div class="form-row">
+            <!-- 1段目左：会議名 -->
+            <div class="form-group">
+                <label>会議名（選択・追加・手入力）:</label>
+                <div class="input-container" style="margin-bottom: 6px;">
+                    <select id="meetingNamePreset" onchange="applyMeetingNamePreset()">
+                        <option value="">-- 登録会議名から選択 --</option>
+                    </select>
+                    <button type="button" class="btn-success" onclick="saveCurrentAsMeetingNamePreset()">今の会議名を登録</button>
+                    <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️ 削除</button>
+                </div>
+                <input type="text" id="metaMeetingName" value="" placeholder="例: 吉沢経営課題会議 または 直接入力">
             </div>
-            <input type="text" id="metaMeetingName" value="" placeholder="例: 品質安全月例会議 または 直接入力">
+
+            <!-- 1段目右：場所 -->
+            <div class="form-group">
+                <label>場所（選択・追加・手入力）:</label>
+                <div class="input-container" style="margin-bottom: 6px;">
+                    <select id="locationPreset" onchange="applyLocationPreset()">
+                        <option value="">-- 登録場所から選択 --</option>
+                    </select>
+                    <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()">今の場所を登録</button>
+                    <button type="button" class="btn-danger" onclick="deleteSelectedLocationPreset()">🗑️ 削除</button>
+                </div>
+                <input type="text" id="metaLocation" value="" placeholder="例: 第1応接室 または 直接入力">
+            </div>
         </div>
 
         <div class="form-row">
+            <!-- 2段目左：日付 -->
             <div class="form-group">
-                <div style="margin-bottom: 12px;">
-                    <label>日:</label>
-                    <input type="text" id="metaDateTime" value="">
-                </div>
-                <div>
-                    <label>参加者（選択・追加・手入力）:</label>
-                    <div class="input-container">
-                        <select id="participantPreset" onchange="applyParticipantPreset()">
-                            <option value="">-- 登録パターンから選択 --</option>
-                        </select>
-                        <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()">今のメンバーを登録</button>
-                        <button type="button" class="btn-danger" onclick="deleteSelectedParticipantPreset()">🗑️ 削除</button>
-                    </div>
-                    <input type="text" id="metaParticipants" value="" placeholder="例: 山田, 山根 または 直接入力">
-                </div>
+                <label>日:</label>
+                <input type="text" id="metaDateTime" value="">
             </div>
 
+            <!-- 2段目右：書記 -->
             <div class="form-group">
-                <div style="margin-bottom: 12px;">
-                    <label>場所（選択・追加・手入力）:</label>
-                    <div class="input-container">
-                        <select id="locationPreset" onchange="applyLocationPreset()">
-                            <option value="">-- 登録場所から選択 --</option>
-                        </select>
-                        <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()">今の場所を登録</button>
-                        <button type="button" class="btn-danger" onclick="deleteSelectedLocationPreset()">🗑️ 削除</button>
-                    </div>
-                    <input type="text" id="metaLocation" value="" placeholder="例: 第1会議室 または 直接入力">
-                </div>
-                <div>
-                    <label>書記:</label>
-                    <input type="text" id="metaSecretary" value="柳井">
-                </div>
+                <label>書記:</label>
+                <input type="text" id="metaSecretary" value="柳井">
             </div>
+        </div>
+
+        <!-- 3段目：参加者（ワイドフル幅配置） -->
+        <div style="margin-top: 5px;">
+            <label>参加者（選択・追加・手入力）:</label>
+            <div class="input-container" style="margin-bottom: 6px;">
+                <select id="participantPreset" onchange="applyParticipantPreset()">
+                    <option value="">-- 登録パターンから選択 --</option>
+                </select>
+                <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()">今のメンバーを登録</button>
+                <button type="button" class="btn-danger" onclick="deleteSelectedParticipantPreset()">🗑️ 削除</button>
+            </div>
+            <input type="text" id="metaParticipants" value="" placeholder="例: 江山社長、寺林常務、渡邊常務、大河原取締役 または 直接入力">
         </div>
     </section>
 
@@ -428,7 +433,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- 会議名プリセット管理（参加者と同様の記憶・選択・削除機能） ---
+        // --- 会議名プリセット管理 ---
         const MEETING_NAME_STORAGE_KEY = 'minutes_meeting_name_presets';
         function getMeetingNames() {
             const saved = localStorage.getItem(MEETING_NAME_STORAGE_KEY);
