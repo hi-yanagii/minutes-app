@@ -2,10 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.11）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.12）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
+    <!-- Excel（.xlsx）読み書き用のSheetJS (xlsx) ライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body { font-family: sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; background: #f9f9f9; color: #333; }
         .header-container { display: flex; align-items: baseline; gap: 10px; margin-bottom: 20px; }
@@ -82,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.11</span>
+        <span class="app-version">Ver2.0.12</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -104,20 +106,30 @@
         <!-- 専門用語辞書登録エリア（折りたたみタブ仕様） -->
         <details style="margin-bottom: 15px; background: #f4f6f8; padding: 10px 14px; border-radius: 6px; border: 1px solid #e1e4e8;">
             <summary style="cursor: pointer; font-weight: bold; font-size: 0.9em; color: #2c3e50; outline: none;">
-                📖 製造業専門用語の登録（クリックして展開・精度向上用）
+                📖 製造業専門用語の登録・管理（Excel入出力対応）
             </summary>
             <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #dce2e6;">
                 <div class="form-row" style="margin-bottom: 8px;">
                     <div class="form-group" style="min-width: 200px;">
-                        <input type="text" id="termDisplay" placeholder="表示名（例: 〇〇プレス）">
+                        <input type="text" id="termDisplay" placeholder="表示名（例: 吉沢）">
                     </div>
                     <div class="form-group" style="min-width: 200px;">
-                        <input type="text" id="termReading" placeholder="読み・発音（例: まるまるぷれす）">
+                        <input type="text" id="termReading" placeholder="読み・発音（例: よしざわ）">
                     </div>
                     <div>
                         <button type="button" class="btn-success" onclick="addCustomTerm()" style="height: 38px;">用語を登録</button>
                     </div>
                 </div>
+
+                <!-- Excelエクスポート・インポート操作エリア -->
+                <div style="display: flex; gap: 10px; align-items: center; margin: 12px 0; padding: 8px; background: #eef2f5; border-radius: 4px;">
+                    <button type="button" class="btn-success" onclick="exportTermsToExcel()" style="height: 34px; font-size: 0.85em;">📥 用語をExcelで書き出し</button>
+                    <div style="display: flex; gap: 5px; align-items: center; flex: 1;">
+                        <input type="file" id="termExcelFile" accept=".xlsx, .xls" style="padding: 3px; font-size: 0.85em; flex: 1;">
+                        <button type="button" class="btn-success" onclick="importTermsFromExcel()" style="height: 34px; font-size: 0.85em;">📤 用語をExcelから読み込み</button>
+                    </div>
+                </div>
+
                 <div style="font-size: 0.8em; color: #666; margin-bottom: 4px;">登録済み専門用語一覧:</div>
                 <div id="termListContainer" class="term-list">
                     <div style="color: #888; text-align: center; padding: 10px;">登録されている専門用語はありません</div>
@@ -285,7 +297,7 @@
             return resultParagraphs.join('\n\n');
         }
 
-        // --- 専門用語辞書の管理（LocalStorage保存） ---
+        // --- 専門用語辞書の管理（LocalStorage保存 & Excel入出力） ---
         const TERM_STORAGE_KEY = 'minutes_custom_terms';
         function getCustomTerms() {
             const saved = localStorage.getItem(TERM_STORAGE_KEY);
@@ -329,6 +341,83 @@
             terms.splice(index, 1);
             saveCustomTerms(terms);
             loadCustomTermsToList();
+        }
+
+        // --- 専門用語のExcelエクスポート（書き出し） ---
+        function exportTermsToExcel() {
+            const terms = getCustomTerms();
+            if (terms.length === 0) {
+                alert('書き出す専門用語が登録されていません。');
+                return;
+            }
+            // Excel用データ形式に変換（1行目にヘッダー）
+            const data = [
+                ["表示名", "読み・発音"]
+            ];
+            terms.forEach(t => {
+                data.push([t.display, t.reading]);
+            });
+
+            const worksheet = XLSX.utils.aoa_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "専門用語辞書");
+
+            // ファイル名に日付を付与してダウンロード
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            XLSX.writeFile(workbook, `専門用語辞書_${yyyy}${mm}${dd}.xlsx`);
+        }
+
+        // --- 専門用語のExcelインポート（読み込み） ---
+        function importTermsFromExcel() {
+            const fileInput = document.getElementById('termExcelFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('読み込むExcelファイル(.xlsx)を選択してください。');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    let importedTerms = getCustomTerms();
+                    let addedCount = 0;
+
+                    // 2行目（インデックス1）からループ（1行目はヘッダー想定）
+                    for (let i = 1; i < json.length; i++) {
+                        const row = json[i];
+                        if (row && row[0] && row[1]) {
+                            const display = String(row[0]).trim();
+                            const reading = String(row[1]).trim();
+                            if (display && reading) {
+                                // 重複チェック（すでに同じ表示名がなければ追加）
+                                const exists = importedTerms.some(t => t.display === display);
+                                if (!exists) {
+                                    importedTerms.push({ display, reading });
+                                    addedCount++;
+                                }
+                            }
+                        }
+                    }
+
+                    saveCustomTerms(importedTerms);
+                    loadCustomTermsToList();
+                    fileInput.value = '';
+                    alert(`Excelファイルから ${addedCount} 件の専門用語を新しく登録しました！`);
+                } catch (err) {
+                    console.error("Excel読み込みエラー:", err);
+                    alert('Excelファイルの読み込みに失敗しました。正しいフォーマットか確認してください。');
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         const PART_STORAGE_KEY = 'minutes_participant_presets';
