@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・機能分離校正版）</title>
+    <title>議事録くん！！（製造業会議・黄緑/青/赤ボタン版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -12,7 +12,7 @@
         h1 { margin: 0; }
         .app-version { font-size: 0.85em; color: #666; font-weight: normal; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; }
         section { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0066cc; padding-bottom: 5px; margin-bottom: 15px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #28a745; padding-bottom: 5px; margin-bottom: 15px; }
         h2 { font-size: 1.1em; margin: 0; border: none; padding: 0; }
         .form-row { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
         .form-group { flex: 1; min-width: 250px; }
@@ -23,16 +23,21 @@
         .input-container select { flex: 1; margin: 0; }
         .input-container button { white-space: nowrap; flex-shrink: 0; }
 
-        button { background: #0066cc; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 36px; }
-        button:hover { background: #004999; }
-        .btn-success { background: #28a745; }
-        .btn-success:hover { background: #218838; }
+        /* ボタンのカラールール */
+        button { background: #28a745; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; height: 36px; }
+        button:hover { background: #218838; }
+        
+        /* 削除系は赤 */
         .btn-danger { background: #d9534f; }
         .btn-danger:hover { background: #c9302c; }
-        .btn-warning { background: #f0ad4e; color: #fff; }
-        .btn-warning:hover { background: #eea236; }
-        .btn-purple { background: #6f42c1; color: #fff; }
-        .btn-purple:hover { background: #5a32a3; }
+        
+        /* 送信系は青 */
+        .btn-primary { background: #007bff; }
+        .btn-primary:hover { background: #0056b3; }
+        
+        /* その他の実行・保存系はすべて黄緑 (#28a745) */
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
         
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
@@ -49,10 +54,10 @@
         }
 
         .chat-msg { margin-bottom: 8px; line-height: 1.4; }
-        .chat-msg.ai { color: #0066cc; }
+        .chat-msg.ai { color: #28a745; }
         .chat-msg.user { color: #333; text-align: right; }
         
-        #statusMessage { font-size: 0.85em; font-weight: bold; margin-top: 5px; color: #0066cc; min-height: 1.2em; }
+        #statusMessage { font-size: 0.85em; font-weight: bold; margin-top: 5px; color: #28a745; min-height: 1.2em; }
 
         /* 処理中ドットアニメーション用スタイル */
         .loading-dots::after {
@@ -72,7 +77,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.5.0 (独立校正ボタン完備版)</span>
+        <span class="app-version">Ver2.6.0 (黄緑/青/赤ボタン統一版)</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -131,9 +136,9 @@
         </div>
     </section>
 
-    <!-- 処理コントロールエリア（ボタンを独立・拡張） -->
-    <section style="background: #f0f7ff; border: 1px dashed #0066cc;">
-        <div class="section-header" style="border-bottom-color: #0066cc;">
+    <!-- 処理コントロールエリア（すべて黄緑・削除は赤） -->
+    <section style="background: #f4fbf5; border: 1px dashed #28a745;">
+        <div class="section-header" style="border-bottom-color: #28a745;">
             <h2>② 処理コントロール（ステップ進行・QA集約・最終校正）</h2>
         </div>
         <p style="font-size: 0.85em; color: #555; margin-top: 0; margin-bottom: 15px;">
@@ -142,9 +147,9 @@
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
             <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">🚀 1. 文字起こし実行</button>
             <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="width: 110px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
-            <button onclick="runStep3Integration()" class="btn-warning" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
+            <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
             <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA集約（後半まとめ）</button>
-            <button onclick="runFinalProofreading()" class="btn-purple" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4. 最終ビジメ校正（常体・体言止め）</button>
+            <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4. 最終ビジメ校正（常体・体言止め）</button>
         </div>
     </section>
 
@@ -163,7 +168,8 @@
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
-                    <button id="sendBtn" onclick="sendChatMessage()" style="height: 90px;">送信</button>
+                    <!-- 送信ボタンは青 (.btn-primary) -->
+                    <button id="sendBtn" class="btn-primary" onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
             </div>
         </div>
@@ -189,7 +195,8 @@
         </div>
         <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
         <div>
-            <button onclick="downloadWordDocument()" style="width: 100%; background: #d9534f; height: 44px; font-size: 1.05em;">💾 ステップ4：元のレイアウトを維持してWordダウンロード</button>
+            <!-- ダウンロードボタンは黄緑 (.btn-success) -->
+            <button class="btn-success" onclick="downloadWordDocument()" style="width: 100%; height: 44px; font-size: 1.05em;">💾 ステップ4：元のレイアウトを維持してWordダウンロード</button>
         </div>
     </section>
 
@@ -199,7 +206,7 @@
 
         function showStatus(text, isError = false) {
             const statusEl = document.getElementById('statusMessage');
-            statusEl.style.color = isError ? '#d9534f' : '#0066cc';
+            statusEl.style.color = isError ? '#d9534f' : '#28a745';
             if (isError) {
                 statusEl.classList.remove('loading-dots');
                 statusEl.textContent = text;
@@ -728,7 +735,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 独立した新機能：4. 最終ビジメ校正（体言止め・常体・名詞化） ---
+        // --- 最終ビジメ校正（体言止め・常体・名詞化） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -777,7 +784,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 機能①：独立したAIチャット修正機能 ---
+        // --- AIチャット修正機能（送信は青） ---
         async function sendChatMessage() {
             const apiKey = getApiKey();
             if(!apiKey) { alert('APIキーを入力してください。'); return; }
@@ -817,7 +824,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 機能②：独立したステップ4（Wordダウンロード機能） ---
+        // --- ステップ4：Wordダウンロード機能 ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
