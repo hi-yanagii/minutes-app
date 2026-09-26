@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.12）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.13）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.12</span>
+        <span class="app-version">Ver2.0.13</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -688,7 +688,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし（専門用語辞書適用） ---
+        // --- ステップ1 & 2：音声分割・文字起こし（勝手な推測禁止 & 専門用語辞書適用） ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -710,7 +710,7 @@
             let termPromptSection = "";
             if (terms.length > 0) {
                 let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」という正式な専門用語（漢字など）に変換すること`).join('\n');
-                termPromptSection = `\n【専門用語・固有名詞の置換ルール】\n以下の製造業専門用語辞書を最優先で適用し、音声を似た一般的な言葉に勝手へ変換せず、必ず正しい表記・漢字で文字起こししてください：\n${termListStr}\n`;
+                termPromptSection = `\n【専門用語・固有名詞の置換ルール】\n以下の製造業専門用語辞書に合致する音声のみ、最優先で指定の漢字・表記に置き換えること：\n${termListStr}\n`;
             }
 
             try {
@@ -743,7 +743,7 @@
                     chunks.push(wavBlob);
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。製造業会議の文脈と専門用語辞書を考慮して順次テキスト化を開始します`);
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。音声データの忠実な文字起こしを開始します`);
                 let accumulatedRawText = "";
 
                 for (let i = 0; i < chunks.length; i++) {
@@ -760,7 +760,12 @@
                             contents: [{
                                 parts: [
                                     audioPart,
-                                    { text: `【指示】これは製造会社の会議音声のパート${partNum}です。製造現場特有の専門用語や技術的表現に留意し、正確なテキスト文字列に変換してください。${termPromptSection}音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
+                                    { text: `【指示】これは製造会社の会議音声のパート${partNum}です。
+【重要ルール】
+- 音声を聞き取り、聞こえた内容をそのまま忠実に文字起こししてください。
+- 登録された専門用語辞書の適用以外は、AI側で前後の文脈から勝手に意味を推測して言葉を書き換えたり美化したりしないこと。
+- 聞き取りづらい部分や曖昧な部分は勝手に推測せず、「【音声不明瞭・聞き取り不能】」と厳密に記載すること。
+${termPromptSection}` }
                                 ]
                             }]
                         })
@@ -793,7 +798,7 @@
 
                 showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 専門用語辞書を適用した文字起こしおよび個別要約が完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 専門用語辞書に基づく置換と、推測を排した忠実な文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
@@ -901,7 +906,7 @@ ${targetText}` }]
 - ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字や丸数字を使用すること。
 - もし会議全体を通してQとAのセットが一切存在しない場合は、無理にまとめブロックを作らず、現在のきれいな時系列の構造をそのまま維持して終了すること。
 - #や*などの記号は使用しないこと。
-- 途中で短い改行を入れず、必ず全角46文字幅いっぱいで折り返しを厳守すること。
+- 途中で短い改行を入れず, 必ず全角46文字幅いっぱいで折り返しを厳守すること。
 
 現在の議事録案:
 ${currentText}` }]
