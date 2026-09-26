@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.4）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.5）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -59,6 +59,11 @@
         
         #statusMessage { font-size: 0.85em; font-weight: bold; color: #28a745; margin: 0; }
 
+        /* 専門用語リスト用スタイル */
+        .term-list { max-height: 120px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 5px; background: #fdfdfd; margin-top: 5px; font-size: 0.85em; }
+        .term-item { display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; border-bottom: 1px solid #eee; }
+        .term-item:last-child { border-bottom: none; }
+
         /* 処理中ドットアニメーション用スタイル */
         .loading-dots::after {
             content: '';
@@ -77,7 +82,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.4</span>
+        <span class="app-version">Ver2.0.5</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -94,6 +99,26 @@
         <div style="margin-bottom: 15px;">
             <label>音声ファイル（mp3, m4a, wav等 ※1時間半などの長時間の音声対応）:</label>
             <input type="file" id="audioFile" accept="audio/*">
+        </div>
+
+        <!-- 専門用語辞書登録エリア -->
+        <div style="margin-bottom: 15px; background: #f4f6f8; padding: 12px; border-radius: 6px; border: 1px solid #e1e4e8;">
+            <label style="margin-bottom: 6px; color: #2c3e50;">📖 製造業専門用語の登録（文字起こし精度向上用）:</label>
+            <div class="form-row" style="margin-bottom: 8px;">
+                <div class="form-group" style="min-width: 200px;">
+                    <input type="text" id="termDisplay" placeholder="表示名（例: 〇〇プレス）">
+                </div>
+                <div class="form-group" style="min-width: 200px;">
+                    <input type="text" id="termReading" placeholder="読み・発音（例: まるまるぷれす）">
+                </div>
+                <div>
+                    <button type="button" class="btn-success" onclick="addCustomTerm()" style="height: 38px;">用語を登録</button>
+                </div>
+            </div>
+            <div style="font-size: 0.8em; color: #666; margin-bottom: 4px;">登録済み専門用語一覧:</div>
+            <div id="termListContainer" class="term-list">
+                <div style="color: #888; text-align: center; padding: 10px;">登録されている専門用語はありません</div>
+            </div>
         </div>
         
         <div class="form-row">
@@ -251,6 +276,52 @@
             return wrappedLines.join('\n');
         }
 
+        // --- 専門用語辞書の管理（LocalStorage保存） ---
+        const TERM_STORAGE_KEY = 'minutes_custom_terms';
+        function getCustomTerms() {
+            const saved = localStorage.getItem(TERM_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        }
+        function saveCustomTerms(terms) {
+            localStorage.setItem(TERM_STORAGE_KEY, JSON.stringify(terms));
+        }
+        function loadCustomTermsToList() {
+            const container = document.getElementById('termListContainer');
+            const terms = getCustomTerms();
+            if (terms.length === 0) {
+                container.innerHTML = '<div style="color: #888; text-align: center; padding: 10px;">登録されている専門用語はありません</div>';
+                return;
+            }
+            let html = '';
+            terms.forEach((item, index) => {
+                html += `<div class="term-item">
+                    <span><b>${item.display}</b> （読み: ${item.reading}）</span>
+                    <button type="button" class="btn-danger" onclick="deleteCustomTerm(${index})" style="height: 26px; padding: 2px 8px; font-size: 0.8em;">削除</button>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+        function addCustomTerm() {
+            const display = document.getElementById('termDisplay').value.trim();
+            const reading = document.getElementById('termReading').value.trim();
+            if (!display || !reading) {
+                alert('「表示名」と「読み・発音」の両方を入力してください。');
+                return;
+            }
+            let terms = getCustomTerms();
+            terms.push({ display, reading });
+            saveCustomTerms(terms);
+            loadCustomTermsToList();
+            document.getElementById('termDisplay').value = '';
+            document.getElementById('termReading').value = '';
+        }
+        function deleteCustomTerm(index) {
+            let terms = getCustomTerms();
+            terms.splice(index, 1);
+            saveCustomTerms(terms);
+            loadCustomTermsToList();
+        }
+
         const PART_STORAGE_KEY = 'minutes_participant_presets';
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
@@ -398,6 +469,7 @@
             loadParticipantsToSelect();
             loadLocationsToSelect();
             loadFormatsToSelect();
+            loadCustomTermsToList();
             
             const now = new Date();
             const yyyy = now.getFullYear();
@@ -522,7 +594,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし・個別要約 ---
+        // --- ステップ1 & 2：音声分割・文字起こし（専門用語辞書適用） ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -539,6 +611,14 @@
             processBtn1.style.display = 'none';
             cancelBtn.style.display = 'inline-block';
             savedPartSummaries = [];
+
+            // 登録された専門用語辞書を組み立て
+            const terms = getCustomTerms();
+            let termPromptSection = "";
+            if (terms.length > 0) {
+                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」という正式な専門用語（漢字など）に変換すること`).join('\n');
+                termPromptSection = `\n【専門用語・固有名詞の置換ルール】\n以下の製造業専門用語辞書を最優先で適用し、音声を似た一般的な言葉に勝手へ変換せず、必ず正しい表記・漢字で文字起こししてください：\n${termListStr}\n`;
+            }
 
             try {
                 showStatus("音声ファイルをデコード中");
@@ -570,7 +650,7 @@
                     chunks.push(wavBlob);
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。製造業会議の文脈を考慮して順次テキスト化および個別要約を開始します`);
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。製造業会議の文脈と専門用語辞書を考慮して順次テキスト化を開始します`);
                 let accumulatedRawText = "";
 
                 for (let i = 0; i < chunks.length; i++) {
@@ -587,7 +667,7 @@
                             contents: [{
                                 parts: [
                                     audioPart,
-                                    { text: `【指示】これは製造会社の会議音声のパート${partNum}です。製造現場特有の専門用語や技術的表現に留意し、正確なテキスト文字列に変換してください。音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
+                                    { text: `【指示】これは製造会社の会議音声のパート${partNum}です。製造現場特有の専門用語や技術的表現に留意し、正確なテキスト文字列に変換してください。${termPromptSection}音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
                                 ]
                             }]
                         })
@@ -620,7 +700,7 @@
 
                 showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 文字起こしおよび個別要約が完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 専門用語辞書を適用した文字起こしおよび個別要約が完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
