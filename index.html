@@ -350,7 +350,6 @@
                 alert('書き出す専門用語が登録されていません。');
                 return;
             }
-            // Excel用データ形式に変換（1行目にヘッダー）
             const data = [
                 ["表示名", "読み・発音"]
             ];
@@ -362,7 +361,6 @@
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "専門用語辞書");
 
-            // ファイル名に日付を付与してダウンロード
             const now = new Date();
             const yyyy = now.getFullYear();
             const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -391,14 +389,12 @@
                     let importedTerms = getCustomTerms();
                     let addedCount = 0;
 
-                    // 2行目（インデックス1）からループ（1行目はヘッダー想定）
                     for (let i = 1; i < json.length; i++) {
                         const row = json[i];
                         if (row && row[0] && row[1]) {
                             const display = String(row[0]).trim();
                             const reading = String(row[1]).trim();
                             if (display && reading) {
-                                // 重複チェック（すでに同じ表示名がなければ追加）
                                 const exists = importedTerms.some(t => t.display === display);
                                 if (!exists) {
                                     importedTerms.push({ display, reading });
@@ -710,7 +706,6 @@
             cancelBtn.style.display = 'inline-block';
             savedPartSummaries = [];
 
-            // 登録された専門用語辞書を組み立て
             const terms = getCustomTerms();
             let termPromptSection = "";
             if (terms.length > 0) {
