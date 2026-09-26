@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.6）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.7）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -82,7 +82,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.6</span>
+        <span class="app-version">Ver2.0.7</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -783,7 +783,7 @@ ${targetText}` }]
             }
         }
 
-        // --- QA集約ボタン：文章の後半に時系列順に移動させる（46文字幅維持） ---
+        // --- QA集約ボタン：文章の後半に時系列順に移動させる（QAがない場合は無理に作らない） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -811,9 +811,8 @@ ${targetText}` }]
 Q: [質問内容]
 A: [回答内容]
 要望・指示： [要望・指示内容]
-（※QAで完結している場合は無理に要望・指示は作らないこと）
 - 前半の各議案の本体部分からは散らばったQAや要望を整理し、後半に集約すること。
-- もし会議全体を通じてQAや要望が一切存在しない場合は、無理に作らず元の構造を維持すること。
+- もし会議全体を通じてQAや要望が一切存在しない場合や、無理に集約する必要がないと判断される場合は、余計なまとめブロックを作ったりせず、現在のきれいな時系列の構造をそのまま維持して終了すること。
 - #や*などの記号は使用しないこと。
 - 全角46文字幅での折り返しを厳守すること（途中で不自然に改行しないこと）。
 
@@ -830,7 +829,7 @@ ${currentText}` }]
                 editor.value = updatedText;
                 showStatus("✨ QA・要望集約（後半へのまとめ）が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望・指示を文章の後半に時系列順に集約しました（46文字幅整列）。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望・指示の集約処理が完了しました（QAがない場合はそのまま自然に維持しています）。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
