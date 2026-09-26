@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・ステップ進行対応版）</title>
+    <title>議事録くん！！（製造業会議・機能分離対応版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -39,7 +39,7 @@
         textarea.chat-input { height: 90px; resize: vertical; font-family: sans-serif; }
         
         textarea.editor { 
-            height: 525px; /* テキストエディターの高さを1.5倍に拡張 */
+            height: 525px; 
             font-family: monospace; 
             resize: vertical; 
             width: 46em; 
@@ -70,7 +70,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.2.0 (製造業会議前提・ボタン集約版)</span>
+        <span class="app-version">Ver2.4.0 (機能分離・製造業会議対応版)</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -145,7 +145,7 @@
         </div>
     </section>
 
-    <!-- ステップ2：プレビュー編集 & AI対話修正 -->
+    <!-- ステップ2：プレビュー編集 & AI対話修正（独立セクション） -->
     <section>
         <h2>③ AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
@@ -166,7 +166,7 @@
         </div>
     </section>
 
-    <!-- ステップ4：フォーマット出力 -->
+    <!-- ステップ4：フォーマット出力（完全独立セクション） -->
     <section>
         <h2>④ 最終出力（ステップ4：Wordダウンロード）</h2>
         <div style="margin-bottom: 15px;">
@@ -191,8 +191,8 @@
     </section>
 
     <script>
-        let abortController = null; // 処理中断用のコントローラー
-        let savedPartSummaries = []; // ステップ1・2で生成した個別要約のデータを保持する変数
+        let abortController = null;
+        let savedPartSummaries = [];
 
         function showStatus(text, isError = false) {
             const statusEl = document.getElementById('statusMessage');
@@ -514,7 +514,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし・個別要約（ここで一時停止） ---
+        // --- ステップ1 & 2：音声分割・文字起こし・個別要約 ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -727,6 +727,7 @@ ${currentText}` }]
             }
         }
 
+        // --- 機能①：独立したAIチャット修正機能 ---
         async function sendChatMessage() {
             const apiKey = getApiKey();
             if(!apiKey) { alert('APIキーを入力してください。'); return; }
@@ -766,7 +767,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード ---
+        // --- 機能②：独立したステップ4（Wordダウンロード機能） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
