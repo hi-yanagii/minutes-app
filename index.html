@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（15分自動分割・マップリデュース対応版）</title>
+    <title>議事録くん！！（ステップ進行・QA集約対応版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -29,6 +29,8 @@
         .btn-success:hover { background: #218838; }
         .btn-danger { background: #d9534f; }
         .btn-danger:hover { background: #c9302c; }
+        .btn-warning { background: #f0ad4e; color: #fff; }
+        .btn-warning:hover { background: #eea236; }
         
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
@@ -68,15 +70,15 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver1.9.8 (QA自動制御・時系列ブロック保持対応版)</span>
+        <span class="app-version">Ver2.0.0 (ステップ進行・QA集約対応版)</span>
     </div>
 
-    <!-- ステップ1：音声ファイルとメタデータ -->
+    <!-- ステップ1＆2：音声ファイルと文字起こし・個別要約（ここで停止） -->
     <section>
         <div class="section-header">
-            <h2>① 録音データのアップロード & メタデータ入力</h2>
+            <h2>① 音声アップロード & 文字起こし・個別要約（ステップ1・2）</h2>
             <div style="display: flex; gap: 10px;">
-                <button id="processBtn" class="btn-success" onclick="runAllSteps()" style="padding: 8px 20px; font-size: 0.95em; height: 40px;">🚀 議事録を一括生成・校正する</button>
+                <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="padding: 8px 20px; font-size: 0.95em; height: 40px;">🚀 ステップ1・2を実行（文字起こしまで）</button>
                 <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="padding: 8px 20px; font-size: 0.95em; height: 40px; display: none;">🛑 中止する</button>
             </div>
         </div>
@@ -131,9 +133,23 @@
         </div>
     </section>
 
+    <!-- ステップ2.5＆3：手動進行ボタンエリア -->
+    <section style="background: #f0f7ff; border: 1px dashed #0066cc;">
+        <div class="section-header" style="border-bottom-color: #0066cc;">
+            <h2>② 統合整形 & QA集約コントロール（ステップ3）</h2>
+        </div>
+        <p style="font-size: 0.85em; color: #555; margin-top: 0; margin-bottom: 15px;">
+            ※ 上のステップ1・2で文字起こしが完了したら、下のボタンを押して順番に整形を進めてください。
+        </p>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <button onclick="runStep3Integration()" class="btn-warning" style="flex: 1; min-height: 44px; font-size: 0.95em;">⚙️ ステップ3：時系列ブロック統合・整形を実行</button>
+            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-height: 44px; font-size: 0.95em;">💬 QA集約：質疑応答を文章後半に時系列順にまとめる</button>
+        </div>
+    </section>
+
     <!-- ステップ2：プレビュー編集 & AI対話修正 -->
     <section>
-        <h2>② AI対話による修正 & テキスト直接編集</h2>
+        <h2>③ AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
             <div class="pane">
                 <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
@@ -142,7 +158,7 @@
             <div class="pane">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
-                    <div class="chat-msg ai"><b>[AI]:</b> 音声ファイルを読み込み、上の「一括生成・校正する」ボタンを押してください。</div>
+                    <div class="chat-msg ai"><b>[AI]:</b> 音声ファイルを読み込み、ステップ1・2を実行してください。</div>
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 専門用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
@@ -152,9 +168,9 @@
         </div>
     </section>
 
-    <!-- ステップ3：フォーマット出力 -->
+    <!-- ステップ4：フォーマット出力 -->
     <section>
-        <h2>③ 最終出力</h2>
+        <h2>④ 最終出力（ステップ4：Wordダウンロード）</h2>
         <div style="margin-bottom: 15px;">
             <label>出力フォーマットの登録（Wordファイルをアップロード）:</label>
             <div class="input-container" style="margin-bottom: 8px;">
@@ -171,14 +187,14 @@
             </div>
         </div>
         <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
-        <div style="display: flex; gap: 10px;">
-            <button onclick="generateFinalOutput()" class="btn-success" style="flex: 1;">📋 テキストでクリップボードにコピー</button>
-            <button onclick="downloadWordDocument()" style="flex: 1; background: #d9534f;">💾 元のレイアウトを維持してWordダウンロード</button>
+        <div>
+            <button onclick="downloadWordDocument()" style="width: 100%; background: #d9534f; height: 44px; font-size: 1.05em;">💾 ステップ4：元のレイアウトを維持してWordダウンロード</button>
         </div>
     </section>
 
     <script>
         let abortController = null; // 処理中断用のコントローラー
+        let savedPartSummaries = []; // ステップ1・2で生成した個別要約のデータを保持する変数
 
         function showStatus(text, isError = false) {
             const statusEl = document.getElementById('statusMessage');
@@ -473,7 +489,6 @@
 
         async function fetchWithRetry(url, options, retries = 3, delay = 3000) {
             for (let i = 0; i < retries; i++) {
-                // 中断シグナルをoptionsにバインドする
                 const fetchOptions = { ...options, signal: abortController ? abortController.signal : undefined };
                 const response = await fetch(url, fetchOptions);
                 const data = await response.json();
@@ -483,7 +498,6 @@
                         showStatus(`サーバー混雑中のため再試行中... (${i+1}/${retries})`);
                         await new Promise((resolve, reject) => {
                             const timer = setTimeout(resolve, delay);
-                            // 待機中にも中断できるようにする
                             if (abortController) {
                                 abortController.signal.addEventListener('abort', () => {
                                     clearTimeout(timer);
@@ -501,12 +515,12 @@
         // 処理を途中で中止する関数
         function cancelProcessing() {
             if (abortController) {
-                abortController.abort(); // 通信を即座にキャンセル
+                abortController.abort();
             }
         }
 
-        // --- マップ・リデュース方式を採用した長時間処理関数 ---
-        async function runAllSteps() {
+        // --- ステップ1 & 2：音声分割・文字起こし・個別要約（ここで一時停止） ---
+        async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
             const fileInput = document.getElementById('audioFile');
@@ -515,14 +529,13 @@
 
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
-            const processBtn = document.getElementById('processBtn');
+            const processBtn1 = document.getElementById('processBtn1');
             const cancelBtn = document.getElementById('cancelBtn');
 
-            // 中断コントローラーを初期化
             abortController = new AbortController();
-
-            processBtn.style.display = 'none';
+            processBtn1.style.display = 'none';
             cancelBtn.style.display = 'inline-block';
+            savedPartSummaries = [];
 
             try {
                 showStatus("音声ファイルをデコード中");
@@ -530,8 +543,8 @@
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
 
-                const duration = decodedAudio.duration; // 秒数
-                const chunkDuration = 900; // 15分 (900秒)
+                const duration = decodedAudio.duration;
+                const chunkDuration = 900; // 15分
                 const chunks = [];
 
                 for (let start = 0; start < duration; start += chunkDuration) {
@@ -555,12 +568,9 @@
                 }
 
                 showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化および個別要約を開始します`);
-                let partSummaries = [];
                 let accumulatedRawText = "";
 
-                // マップフェーズ：各パートのテキスト化と個別要約
                 for (let i = 0; i < chunks.length; i++) {
-                    // ループごとに中断されているかチェック
                     if (abortController.signal.aborted) throw new Error('AbortError');
 
                     const partNum = i + 1;
@@ -584,7 +594,6 @@
                     const partText = dataRes.candidates[0].content.parts[0].text;
                     accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
 
-                    // 各パートの個別要約生成
                     showStatus(`【パート ${partNum} / ${chunks.length}】 個別要約生成中`);
                     const dataPartSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                         method: 'POST',
@@ -598,18 +607,45 @@
 
                     if (!dataPartSummary.error && dataPartSummary.candidates && dataPartSummary.candidates[0]) {
                         const pSum = dataPartSummary.candidates[0].content.parts[0].text;
-                        partSummaries.push(`[パート ${partNum} の要約]\n${pSum}`);
+                        savedPartSummaries.push(`[パート ${partNum} の要約]\n${pSum}`);
                     } else {
-                        partSummaries.push(`[パート ${partNum} の要約]\n${partText}`);
+                        savedPartSummaries.push(`[パート ${partNum} の要約]\n${partText}`);
                     }
 
-                    editor.value = accumulatedRawText; // リアルタイムの進捗プレビュー
+                    editor.value = accumulatedRawText;
                 }
 
-                showStatus("全パートの個別要約完了。時系列ブロックを維持してビジネス議事録に最終整形中");
-                
-                // リデュースフェーズ：各パートの要約を時系列・ブロック単位で統合して最終整形
-                const combinedSummaries = partSummaries.join("\n\n");
+                showStatus("✨ ステップ1・2（文字起こし・個別要約）が完了しました！内容を確認し、上の「ステップ3」ボタンを押してください。");
+                document.getElementById('statusMessage').classList.remove('loading-dots');
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ1・2が完了しました。内容を確認して、次の「ステップ3：時系列ブロック統合・整形」ボタンを押してください。</div>`;
+            } catch (e) {
+                if (e.message === 'AbortError' || e.name === 'AbortError') {
+                    showStatus("🛑 処理を途中で中止しました。");
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ユーザーの操作により処理を中断しました。</div>`;
+                } else {
+                    showStatus("❌ エラー発生", true);
+                    alert('エラー: ' + e.message);
+                }
+            } finally {
+                abortController = null;
+                cancelBtn.style.display = 'none';
+                processBtn1.style.display = 'inline-block';
+            }
+        }
+
+        // --- ステップ3：時系列ブロック統合・整形 ---
+        async function runStep3Integration() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            if (savedPartSummaries.length === 0) { alert('先に上のステップ1・2を実行してください。'); return; }
+
+            const editor = document.getElementById('summaryEditor');
+            const history = document.getElementById('chatHistory');
+
+            try {
+                showStatus("時系列ブロックを維持してビジネス議事録に統合・整形中");
+                const combinedSummaries = savedPartSummaries.join("\n\n");
+
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -629,28 +665,67 @@ ${combinedSummaries}` }]
                         }]
                     })
                 });
+
                 if (dataFinal.error) throw new Error(dataFinal.error.message);
-                
                 let finalResult = dataFinal.candidates[0].content.parts[0].text;
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 1時間半などの長時間音声に対応するマップ・リデュース方式（時系列ブロック維持・QA自動制御・統合整形）が完了しました。</div>`;
-                showStatus("✨ 議事録の自動生成・校正が完了しました！");
+                showStatus("✨ ステップ3：統合・時系列整形が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ3の時系列ブロック統合・整形が完了しました。</div>`;
             } catch (e) {
-                if (e.message === 'AbortError' || e.name === 'AbortError') {
-                    showStatus("🛑 処理を途中で中止しました。");
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ユーザーの操作により処理を中断しました。</div>`;
-                } else {
-                    showStatus("❌ エラー発生", true);
-                    alert('エラー: ' + e.message);
-                    editor.value = "エラーが発生しました。";
-                }
-            } finally {
-                abortController = null;
-                cancelBtn.style.display = 'none';
-                processBtn.style.display = 'inline-block';
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
+            }
+        }
+
+        // --- QA集約ボタン：文章の後半に時系列順に移動させる ---
+        async function runStep3QACollection() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            const editor = document.getElementById('summaryEditor');
+            const history = document.getElementById('chatHistory');
+            const currentText = editor.value.trim();
+
+            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
+                alert('先に議事録のデータを作成・統合してください。');
+                return;
+            }
+
+            try {
+                showStatus("質疑応答（QA）を抽出して文章の後半に時系列順に集約中");
+
+                const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下の議事録案を再構成してください。
+【指示】
+- 本文中のすべての質疑応答（QA）部分を抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
+- 前半の各議案の本体部分からは散らばったQAを整理し、後半に集約してすっきりと見やすくすること。
+- もし会議全体を通じてQA（質疑応答）が一切存在しない場合は、無理にQAを作らず、元の構造をそのまま維持すること。
+- 名詞化、体現止め、常体表現（だ・である調）を基本とし、#や*などの記号は使用しないこと。
+- 46文字幅の折り返しを維持すること。
+
+現在の議事録案:
+${currentText}` }]
+                        }]
+                    })
+                });
+
+                if (dataQA.error) throw new Error(dataQA.error.message);
+                let updatedText = dataQA.candidates[0].content.parts[0].text;
+                updatedText = wrapTextByLength(updatedText, 46);
+
+                editor.value = updatedText;
+                showStatus("✨ QA集約（後半への時系列順まとめ）が完了しました！");
+                document.getElementById('statusMessage').classList.remove('loading-dots');
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> QA集約処理が完了しました。質疑応答が文章の後半に時系列順にまとめられました。</div>`;
+            } catch (e) {
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
             }
         }
 
@@ -693,23 +768,7 @@ ${combinedSummaries}` }]
             }
         }
 
-        function generateFinalOutput() {
-            const formatName = document.getElementById('formatTemplate').value;
-            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
-
-            const dt = document.getElementById('metaDateTime').value;
-            const loc = document.getElementById('metaLocation').value;
-            const parts = document.getElementById('metaParticipants').value;
-            const sec = document.getElementById('metaSecretary').value;
-            const content = document.getElementById('summaryEditor').value;
-
-            const textOutput = `日: ${dt}\n場所: ${loc}\n参加者: ${parts}\n書記: ${sec}\n\n${content}`;
-            
-            navigator.clipboard.writeText(textOutput).then(() => {
-                alert(`フォーマットテキストをクリップボードにコピーしました！`);
-            });
-        }
-
+        // --- ステップ4：Wordダウンロード ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -718,14 +777,12 @@ ${combinedSummaries}` }]
             const base64Data = formats[formatName];
             if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
 
-            // 画面のテキストエリアおよび入力欄から「完全なリアルタイムの最新値」を取得
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
             const parts = document.getElementById('metaParticipants').value;
             const sec = document.getElementById('metaSecretary').value;
             let content = document.getElementById('summaryEditor').value;
 
-            // 改行コードの揺れを正規化し、Word上で強制改行ではなく通常の段落・改行として綺麗に反映させる
             content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
             try {
@@ -744,12 +801,10 @@ ${combinedSummaries}` }]
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // キャッシュ汚染を防ぐため毎回完全に新しいZIPインスタンスとして読み込む
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: true, // 通常の改行として処理を有効化
-                    // 段落行間を「固定値 12pt」 (w:line="240", w:lineRule="exact") に設定
+                    linebreaks: true,
                     paragraphProperties: {
                         spacing: {
                             line: 240,
@@ -762,7 +817,6 @@ ${combinedSummaries}` }]
                     }
                 });
 
-                // 最新のデータを確実に強制レンダリング
                 doc.render({
                     日: dt,
                     日時: dt,
@@ -786,7 +840,7 @@ ${combinedSummaries}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('最新のエディター内容、通常改行、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
+                alert('ステップ4：最新のエディター内容、通常改行、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error("Word生成エラー詳細:", err);
                 let errMsg = err.message || JSON.stringify(err);
