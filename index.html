@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.5）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.6）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -82,7 +82,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.5</span>
+        <span class="app-version">Ver2.0.6</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -101,25 +101,29 @@
             <input type="file" id="audioFile" accept="audio/*">
         </div>
 
-        <!-- 専門用語辞書登録エリア -->
-        <div style="margin-bottom: 15px; background: #f4f6f8; padding: 12px; border-radius: 6px; border: 1px solid #e1e4e8;">
-            <label style="margin-bottom: 6px; color: #2c3e50;">📖 製造業専門用語の登録（文字起こし精度向上用）:</label>
-            <div class="form-row" style="margin-bottom: 8px;">
-                <div class="form-group" style="min-width: 200px;">
-                    <input type="text" id="termDisplay" placeholder="表示名（例: 〇〇プレス）">
+        <!-- 専門用語辞書登録エリア（折りたたみタブ仕様） -->
+        <details style="margin-bottom: 15px; background: #f4f6f8; padding: 10px 14px; border-radius: 6px; border: 1px solid #e1e4e8;">
+            <summary style="cursor: pointer; font-weight: bold; font-size: 0.9em; color: #2c3e50; outline: none;">
+                📖 製造業専門用語の登録（クリックして展開・精度向上用）
+            </summary>
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #dce2e6;">
+                <div class="form-row" style="margin-bottom: 8px;">
+                    <div class="form-group" style="min-width: 200px;">
+                        <input type="text" id="termDisplay" placeholder="表示名（例: 〇〇プレス）">
+                    </div>
+                    <div class="form-group" style="min-width: 200px;">
+                        <input type="text" id="termReading" placeholder="読み・発音（例: まるまるぷれす）">
+                    </div>
+                    <div>
+                        <button type="button" class="btn-success" onclick="addCustomTerm()" style="height: 38px;">用語を登録</button>
+                    </div>
                 </div>
-                <div class="form-group" style="min-width: 200px;">
-                    <input type="text" id="termReading" placeholder="読み・発音（例: まるまるぷれす）">
-                </div>
-                <div>
-                    <button type="button" class="btn-success" onclick="addCustomTerm()" style="height: 38px;">用語を登録</button>
+                <div style="font-size: 0.8em; color: #666; margin-bottom: 4px;">登録済み専門用語一覧:</div>
+                <div id="termListContainer" class="term-list">
+                    <div style="color: #888; text-align: center; padding: 10px;">登録されている専門用語はありません</div>
                 </div>
             </div>
-            <div style="font-size: 0.8em; color: #666; margin-bottom: 4px;">登録済み専門用語一覧:</div>
-            <div id="termListContainer" class="term-list">
-                <div style="color: #888; text-align: center; padding: 10px;">登録されている専門用語はありません</div>
-            </div>
-        </div>
+        </details>
         
         <div class="form-row">
             <div class="form-group">
