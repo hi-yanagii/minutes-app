@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.7）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.8）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -82,7 +82,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.7</span>
+        <span class="app-version">Ver2.0.8</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -783,7 +783,7 @@ ${targetText}` }]
             }
         }
 
-        // --- QA集約ボタン：文章の後半に時系列順に移動させる（QAがない場合は無理に作らない） ---
+        // --- QA集約ボタン：Q,A,要望/指示のセットのときだけ後半に集約する ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -797,7 +797,7 @@ ${targetText}` }]
             }
 
             try {
-                showStatus("製造業会議の質疑応答（QA）および要望を抽出して後半に時系列順に集約中");
+                showStatus("質疑応答のセットを抽出して後半に時系列順に集約中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -806,13 +806,9 @@ ${targetText}` }]
                         contents: [{
                             parts: [{ text: `以下の製造会社会議の議事録案を再構成してください。
 【指示】
-- 本文中のすべての質疑応答（QA）および出された要望・指示を抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
-- 抽出する際は、必ず以下の形式に統一して記述すること：
-Q: [質問内容]
-A: [回答内容]
-要望・指示： [要望・指示内容]
-- 前半の各議案の本体部分からは散らばったQAや要望を整理し、後半に集約すること。
-- もし会議全体を通じてQAや要望が一切存在しない場合や、無理に集約する必要がないと判断される場合は、余計なまとめブロックを作ったりせず、現在のきれいな時系列の構造をそのまま維持して終了すること。
+- 本文中のすべてのやり取りのうち、「Q（質問）」と「A（回答）」、そして要望・指示が綺麗にセットになっているものだけを抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
+- 要望や指示単体のもの、あるいはQ&Aのセットになっていないものは後半へ無理に移動させず、もともとの時系列の位置（本文中の発生した場所）にそのまま残してください。
+- もし会議全体を通してQとAのセットが一切存在しない場合は、無理にまとめブロックを作らず、現在のきれいな時系列の構造をそのまま維持して終了すること。
 - #や*などの記号は使用しないこと。
 - 全角46文字幅での折り返しを厳守すること（途中で不自然に改行しないこと）。
 
@@ -827,9 +823,9 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                showStatus("✨ QA・要望集約（後半へのまとめ）が完了しました！");
+                showStatus("✨ 質疑応答セットの後半集約が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望・指示の集約処理が完了しました（QAがない場合はそのまま自然に維持しています）。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aがセットになっているものだけを抽出し、文章の後半に時系列順に集約しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
