@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・黄緑/青/赤ボタン版）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.0）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -77,7 +77,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.6.0 (黄緑/青/赤ボタン統一版)</span>
+        <span class="app-version">Ver2.0.0</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -136,7 +136,7 @@
         </div>
     </section>
 
-    <!-- 処理コントロールエリア（すべて黄緑・削除は赤） -->
+    <!-- 処理コントロールエリア -->
     <section style="background: #f4fbf5; border: 1px dashed #28a745;">
         <div class="section-header" style="border-bottom-color: #28a745;">
             <h2>② 処理コントロール（ステップ進行・QA集約・最終校正）</h2>
@@ -149,7 +149,7 @@
             <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="width: 110px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
             <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
             <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA集約（後半まとめ）</button>
-            <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4. 最終ビジメ校正（常体・体言止め）</button>
+            <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4・最終議事録校正</button>
         </div>
     </section>
 
@@ -168,7 +168,6 @@
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
-                    <!-- 送信ボタンは青 (.btn-primary) -->
                     <button id="sendBtn" class="btn-primary" onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
             </div>
@@ -195,7 +194,6 @@
         </div>
         <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。</p>
         <div>
-            <!-- ダウンロードボタンは黄緑 (.btn-success) -->
             <button class="btn-success" onclick="downloadWordDocument()" style="width: 100%; height: 44px; font-size: 1.05em;">💾 ステップ4：元のレイアウトを維持してWordダウンロード</button>
         </div>
     </section>
@@ -679,7 +677,7 @@ ${combinedSummaries}` }]
                 editor.value = finalResult;
                 showStatus("✨ 時系列ブロックの統合が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。続いて「QA集約」または「最終ビジメ校正」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。続いて「QA集約」または「最終議事録校正」ボタンを押してください。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -735,7 +733,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 最終ビジメ校正（体言止め・常体・名詞化） ---
+        // --- 最終議事録校正（体言止め・常体・名詞化） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -749,14 +747,14 @@ ${currentText}` }]
             }
 
             try {
-                showStatus("名詞化・体言止め・常体表現を基本とした最終ビジメ校正中");
+                showStatus("名詞化・体言止め・常体表現を基本とした最終議事録校正中");
 
                 const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の議事録案に対して、正式なビジネス文書としての最終校正（ビジメ校正）を行ってください。
+                            parts: [{ text: `以下の議事録案に対して、正式なビジネス文書としての最終校正を行ってください。
 【必須ルール】
 - 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
 - 礼式にこだわり、製造業の公式な議事録・報告書としてふさわしい丁寧かつ引き締まったトーンに整えること。
@@ -775,9 +773,9 @@ ${currentText}` }]
                 proofedText = wrapTextByLength(proofedText, 46);
 
                 editor.value = proofedText;
-                showStatus("✨ 最終ビジメ校正（体言止め・常体化）が完了しました！");
+                showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終ビジメ校正（名詞化・体言止め・常体表現の徹底）が完了しました。内容を確認してWordダウンロードに進んでください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（名詞化・体言止め・常体表現の徹底）が完了しました。内容を確認してWordダウンロードに進んでください。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
