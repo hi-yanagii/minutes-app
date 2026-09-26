@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.9）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.10）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -82,7 +82,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.9</span>
+        <span class="app-version">Ver2.0.10</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -243,17 +243,24 @@
             }
         }
 
-        // --- スマート折り返し関数 ---
+        // --- 強力なスマート折り返し関数（短い改行を一度つないで46文字で再ラップ） ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
-            const lines = str.split('\n');
-            let wrappedLines = [];
-            
-            for (let line of lines) {
-                if (line.length <= maxLen) {
-                    wrappedLines.push(line);
-                } else {
-                    let currentLine = line;
+            // 段落（空行）ごとに分割
+            const paragraphs = str.split(/\n\s*\n/);
+            let resultParagraphs = [];
+
+            for (let para of paragraphs) {
+                // 各段落内の改行をいったんスペース等に置き換えずに、独立した行（箇条書きやQ/A行など）として保持しつつ再整形
+                const rawLines = para.split('\n');
+                let processedLines = [];
+
+                for (let line of rawLines) {
+                    let trimmed = line.trim();
+                    if (!trimmed) continue;
+
+                    // 箇条書き記号（・、①②③等）やQ/A形式の行は、それ自体を1つのブロック単位として扱いつつ、長ければラップする
+                    let currentLine = trimmed;
                     while (currentLine.length > maxLen) {
                         let breakIdx = maxLen;
                         let subStr = currentLine.substring(0, maxLen + 1);
@@ -269,15 +276,16 @@
                             breakIdx = lastSpace + 1;
                         }
                         
-                        wrappedLines.push(currentLine.substring(0, breakIdx));
+                        processedLines.push(currentLine.substring(0, breakIdx));
                         currentLine = currentLine.substring(breakIdx);
                     }
                     if (currentLine.length > 0) {
-                        wrappedLines.push(currentLine);
+                        processedLines.push(currentLine);
                     }
                 }
+                resultParagraphs.push(processedLines.join('\n'));
             }
-            return wrappedLines.join('\n');
+            return resultParagraphs.join('\n\n');
         }
 
         // --- 専門用語辞書の管理（LocalStorage保存） ---
@@ -859,7 +867,7 @@ ${currentText}` }]
 - 礼式にこだわり、製造業の公式な議事録・報告書としてふさわしい丁寧かつ引き締まったトーンに整えること。
 - 「Q: / A: / 要望・指示：」の形式がある場合はその構造を崩さずに維持すること。
 - 時系列の順番やブロックの並び順は一切崩さないこと。
-- #や*などのMarkdown記号は使用せず、改行や①②③や・を用いてすっきりとまとめること。
+- #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめること。
 - 全角46文字幅での折り返しを維持すること。
 
 現在の議事録案:
