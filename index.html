@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.13）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.14）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.13</span>
+        <span class="app-version">Ver2.0.14</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -241,7 +241,6 @@
 
     <script>
         let abortController = null;
-        let savedPartSummaries = [];
 
         function showStatus(text, isError = false) {
             const statusEl = document.getElementById('statusMessage');
@@ -688,7 +687,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし（勝手な推測禁止 & 専門用語辞書適用） ---
+        // --- ステップ1 & 2：音声分割・文字起こし（挨拶文の完全排除 & 勝手な推測禁止 & 専門用語辞書適用） ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -704,7 +703,6 @@
             abortController = new AbortController();
             processBtn1.style.display = 'none';
             cancelBtn.style.display = 'inline-block';
-            savedPartSummaries = [];
 
             const terms = getCustomTerms();
             let termPromptSection = "";
@@ -763,6 +761,7 @@
                                     { text: `【指示】これは製造会社の会議音声のパート${partNum}です。
 【重要ルール】
 - 音声を聞き取り、聞こえた内容をそのまま忠実に文字起こししてください。
+- 「はい、ご指示に従い…」や挨拶、前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
 - 登録された専門用語辞書の適用以外は、AI側で前後の文脈から勝手に意味を推測して言葉を書き換えたり美化したりしないこと。
 - 聞き取りづらい部分や曖昧な部分は勝手に推測せず、「【音声不明瞭・聞き取り不能】」と厳密に記載すること。
 ${termPromptSection}` }
@@ -772,33 +771,15 @@ ${termPromptSection}` }
                     });
 
                     if (dataRes.error) throw new Error(dataRes.error.message);
-                    const partText = dataRes.candidates[0].content.parts[0].text;
+                    const partText = dataRes.candidates[0].content.parts[0].text.trim();
                     accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
-
-                    showStatus(`【パート ${partNum} / ${chunks.length}】 個別要約生成中`);
-                    const dataPartSummary = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [{ text: `以下のテキストデータは、製造会社の会議音声のパート${partNum}の文字起こしです。この製造現場の会議（品質、安全、工程管理等）における主要な発言内容、決定事項、議論の要点を時系列順に簡潔にまとめてください。\n\n${partText}` }]
-                            }]
-                        })
-                    });
-
-                    if (!dataPartSummary.error && dataPartSummary.candidates && dataPartSummary.candidates[0]) {
-                        const pSum = dataPartSummary.candidates[0].content.parts[0].text;
-                        savedPartSummaries.push(`[パート ${partNum} の要約]\n${pSum}`);
-                    } else {
-                        savedPartSummaries.push(`[パート ${partNum} の要約]\n${partText}`);
-                    }
 
                     editor.value = accumulatedRawText;
                 }
 
                 showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 専門用語辞書に基づく置換と、推測を排した忠実な文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 専門用語辞書に基づく置換と、挨拶文を含まない忠実な文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
@@ -814,7 +795,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（Q/A/要望・指示形式 & 46文字幅維持 & 漢数字禁止） ---
+        // --- ステップ3：時系列ブロック統合・整形（※エディターの最新テキストを直接ベースにする） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -823,18 +804,13 @@ ${termPromptSection}` }
             const history = document.getElementById('chatHistory');
             const currentText = editor.value.trim();
 
-            let targetText = "";
-            if (savedPartSummaries.length > 0) {
-                targetText = savedPartSummaries.join("\n\n");
-            } else if (currentText && !currentText.includes("ここに処理結果が表示されます")) {
-                targetText = currentText;
-            } else {
+            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
                 alert('先に上の「1. 文字起こし実行」を行うか、エディタ欄にテキストを直接貼り付けてください。');
                 return;
             }
 
             try {
-                showStatus("製造会社会議の文脈に沿って時系列ブロックを統合し、Q/A形式に整理中");
+                showStatus("エディターの最新テキストを元に、時系列ブロックを統合しQ/A形式に整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -859,7 +835,7 @@ A: [回答内容]
 - 日時や場所、タイトルは本文に入力しない。
 - 途中で短い改行を入れず、必ず全角46文字幅いっぱいで折り返しを維持すること。
 
-${targetText}` }]
+${currentText}` }]
                         }]
                     })
                 });
@@ -871,14 +847,14 @@ ${targetText}` }]
                 editor.value = finalResult;
                 showStatus("✨ 時系列ブロックの統合とQ/A形式への整理が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合とQ/A/要望・指示形式への整理が完了しました。続いて「QA集約」または「最終議事録校正」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの修正内容を反映した時系列ブロックの統合とQ/A形式への整理が完了しました。続いて「QA集約」または「最終議事録校正」ボタンを押してください。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- QA集約ボタン：Q,A,要望/指示のセットのときだけ後半に集約する（漢数字禁止） ---
+        // --- QA集約ボタン（※エディターの最新テキストを直接ベースにする） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -892,7 +868,7 @@ ${targetText}` }]
             }
 
             try {
-                showStatus("質疑応答のセットを抽出して後半に時系列順に集約中");
+                showStatus("エディターの最新テキストを元に、質疑応答のセットを抽出して後半に時系列順に集約中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -906,7 +882,7 @@ ${targetText}` }]
 - ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字や丸数字を使用すること。
 - もし会議全体を通してQとAのセットが一切存在しない場合は、無理にまとめブロックを作らず、現在のきれいな時系列の構造をそのまま維持して終了すること。
 - #や*などの記号は使用しないこと。
-- 途中で短い改行を入れず, 必ず全角46文字幅いっぱいで折り返しを厳守すること。
+- 途中で短い改行を入れず、必ず全角46文字幅いっぱいで折り返しを厳守すること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -921,14 +897,14 @@ ${currentText}` }]
                 editor.value = updatedText;
                 showStatus("✨ 質疑応答セットの後半集約が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aがセットになっているものだけを抽出し、文章の後半に時系列順に集約しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの内容をベースに、Q&Aがセットになっているものだけを抽出し後半に時系列順に集約しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- 最終議事録校正（体言止め・常体・名詞化・46文字厳守・漢数字禁止） ---
+        // --- 最終議事録校正（※エディターの最新テキストを直接ベースにする） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -972,7 +948,7 @@ ${currentText}` }]
                 editor.value = proofedText;
                 showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（名詞化・体言止め・常体表現の徹底、46文字幅・漢数字禁止の適用）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの内容をベースに最終議事録校正（名詞化・体言止め・常体表現の徹底、46文字幅・漢数字禁止の適用）が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
