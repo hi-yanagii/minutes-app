@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・機能分離対応版）</title>
+    <title>議事録くん！！（製造業会議・機能分離校正版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -31,6 +31,8 @@
         .btn-danger:hover { background: #c9302c; }
         .btn-warning { background: #f0ad4e; color: #fff; }
         .btn-warning:hover { background: #eea236; }
+        .btn-purple { background: #6f42c1; color: #fff; }
+        .btn-purple:hover { background: #5a32a3; }
         
         .workspace { display: flex; gap: 20px; }
         .pane { flex: 1; display: flex; flex-direction: column; }
@@ -70,7 +72,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.4.0 (機能分離・製造業会議対応版)</span>
+        <span class="app-version">Ver2.5.0 (独立校正ボタン完備版)</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -129,23 +131,24 @@
         </div>
     </section>
 
-    <!-- 処理コントロールエリア（すべての実行ボタンをここに集約） -->
+    <!-- 処理コントロールエリア（ボタンを独立・拡張） -->
     <section style="background: #f0f7ff; border: 1px dashed #0066cc;">
         <div class="section-header" style="border-bottom-color: #0066cc;">
-            <h2>② 処理コントロール（製造業会議向け ステップ1〜3 ＆ QA集約）</h2>
+            <h2>② 処理コントロール（ステップ進行・QA集約・最終校正）</h2>
         </div>
         <p style="font-size: 0.85em; color: #555; margin-top: 0; margin-bottom: 15px;">
-            ※ 製造会社の会議（品質・安全・生産管理等）を前提に処理を行います。上の準備ができたらボタンを順番に押してください。
+            ※ 製造会社の会議を前提に処理を行います。下のボタンを順番に押して編集を進めてください。
         </p>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-            <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 220px; height: 44px; font-size: 0.95em;">🚀 1. ステップ1・2を実行（文字起こし）</button>
-            <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="width: 120px; height: 44px; font-size: 0.95em; display: none;">🛑 中止する</button>
-            <button onclick="runStep3Integration()" class="btn-warning" style="flex: 1; min-width: 220px; height: 44px; font-size: 0.95em;">⚙️ 2. ステップ3：時系列ブロック統合・整形</button>
-            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 220px; height: 44px; font-size: 0.95em;">💬 3. QA集約（文章後半に時系列順まとめ）</button>
+            <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">🚀 1. 文字起こし実行</button>
+            <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="width: 110px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
+            <button onclick="runStep3Integration()" class="btn-warning" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
+            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA集約（後半まとめ）</button>
+            <button onclick="runFinalProofreading()" class="btn-purple" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4. 最終ビジメ校正（常体・体言止め）</button>
         </div>
     </section>
 
-    <!-- ステップ2：プレビュー編集 & AI対話修正（独立セクション） -->
+    <!-- ステップ2：プレビュー編集 & AI対話修正 -->
     <section>
         <h2>③ AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
@@ -156,7 +159,7 @@
             <div class="pane">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
-                    <div class="chat-msg ai"><b>[AI]:</b> 製造会社の会議音声を読み込み、上の「ステップ1・2を実行」ボタンを押してください。</div>
+                    <div class="chat-msg ai"><b>[AI]:</b> 製造会社の会議音声を読み込み、上の「1. 文字起こし実行」ボタンを押してください。</div>
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
@@ -166,7 +169,7 @@
         </div>
     </section>
 
-    <!-- ステップ4：フォーマット出力（完全独立セクション） -->
+    <!-- ステップ4：フォーマット出力 -->
     <section>
         <h2>④ 最終出力（ステップ4：Wordダウンロード）</h2>
         <div style="margin-bottom: 15px;">
@@ -610,13 +613,13 @@
                     editor.value = accumulatedRawText;
                 }
 
-                showStatus("✨ ステップ1・2（文字起こし・個別要約）が完了しました！内容を確認し、上の「2. ステップ3」ボタンを押してください。");
+                showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ1・2が完了しました。製造会社の会議内容であることを踏まえて文字起こし・要約を行いました。次の「2. ステップ3：時系列ブロック統合・整形」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 文字起こしおよび個別要約が完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ユーザーの操作により処理を中断しました。</div>`;
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 処理を中断しました。</div>`;
                 } else {
                     showStatus("❌ エラー発生", true);
                     alert('エラー: ' + e.message);
@@ -632,13 +635,13 @@
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-            if (savedPartSummaries.length === 0) { alert('先に上のステップ1・2を実行してください。'); return; }
+            if (savedPartSummaries.length === 0) { alert('先に上の「1. 文字起こし実行」を行ってください。'); return; }
 
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
 
             try {
-                showStatus("製造会社会議の文脈に沿って時系列ブロックを維持し統合・整形中");
+                showStatus("製造会社会議の文脈に沿って時系列ブロックを維持し統合中");
                 const combinedSummaries = savedPartSummaries.join("\n\n");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -646,16 +649,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の各パートの要約データをすべて統合し、製造会社の会議用の議事録形式に最終校正してください。
+                            parts: [{ text: `以下の各パートの要約データをすべて統合し、製造会社の会議用の議事録形式にまとめてください。
 【前提条件】
 - 内容は「製造会社の会議（品質管理、安全衛生、工程・生産管理、設備保全など）」であるため、製造現場の文脈にふさわしい専門的なトーンを維持すること。
 
 【重要ルール】
 - 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのままブロック単位で保持して記載すること。
-- たとえ同じテーマ（例：「品質不良」や「安全」など）であっても、会議の異なる時間帯（前半と後半など）で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロック（例：議案1、議案3など）として独立させて記載すること。
-- 質疑応答（QA）が存在する場合のみ【質疑応答】またはQ. / A.形式含めること。QAが存在しない話題や議論については無理にQ.やA.の形式に仕立て上げず、通常の記載形式で自然にまとめること。
-- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。
-- 名詞化、体現止め、常体表現（だ・である調）を基本とする。
+- たとえ同じテーマであっても、会議の異なる時間帯で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロックとして独立させて記載すること。
+- 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」と記載すること。
 - #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。
 - 日時や場所、タイトルは本文に入力しない。
 
@@ -669,9 +670,9 @@ ${combinedSummaries}` }]
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                showStatus("✨ ステップ3：製造業向け時系列ブロック統合・整形が完了しました！");
+                showStatus("✨ 時系列ブロックの統合が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ3の時系列ブロック統合・整形（製造業会議前提）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。続いて「QA集約」または「最終ビジメ校正」ボタンを押してください。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -687,12 +688,12 @@ ${combinedSummaries}` }]
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に議事録のデータを作成・統合してください。');
+                alert('先に議事録データを準備・統合してください。');
                 return;
             }
 
             try {
-                showStatus("製造業会議の質疑応答（QA）を抽出して文章の後半に時系列順に集約中");
+                showStatus("製造業会議の質疑応答（QA）を抽出して後半に時系列順に集約中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -702,9 +703,9 @@ ${combinedSummaries}` }]
                             parts: [{ text: `以下の製造会社会議の議事録案を再構成してください。
 【指示】
 - 本文中のすべての質疑応答（QA）部分を抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
-- 前半の各議案の本体部分からは散らばったQAを整理し、後半に集約してすっきりと見やすくすること。
-- もし会議全体を通じてQA（質疑応答）が一切存在しない場合は、無理にQAを作らず、元の構造をそのまま維持すること。
-- 名詞化、体現止め、常体表現（だ・である調）を基本とし、#や*などの記号は使用しないこと。
+- 前半の各議案の本体部分からは散らばったQAを整理し、後半に集約すること。
+- もし会議全体を通じてQAが一切存在しない場合は、無理にQAを作らず元の構造を維持すること。
+- #や*などの記号は使用しないこと。
 - 46文字幅の折り返しを維持すること。
 
 現在の議事録案:
@@ -718,9 +719,58 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                showStatus("✨ QA集約（後半への時系列順まとめ）が完了しました！");
+                showStatus("✨ QA集約（後半へのまとめ）が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> QA集約処理が完了しました。製造業会議の質疑応答が文章の後半に時系列順にまとめられました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答を文章の後半に時系列順に集約しました。</div>`;
+            } catch (e) {
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
+            }
+        }
+
+        // --- 独立した新機能：4. 最終ビジメ校正（体言止め・常体・名詞化） ---
+        async function runFinalProofreading() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            const editor = document.getElementById('summaryEditor');
+            const history = document.getElementById('chatHistory');
+            const currentText = editor.value.trim();
+
+            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
+                alert('先に校正する議事録データを作成してください。');
+                return;
+            }
+
+            try {
+                showStatus("名詞化・体言止め・常体表現を基本とした最終ビジメ校正中");
+
+                const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下の議事録案に対して、正式なビジネス文書としての最終校正（ビジメ校正）を行ってください。
+【必須ルール】
+- 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
+- 礼式にこだわり、製造業の公式な議事録・報告書としてふさわしい丁寧かつ引き締まったトーンに整えること。
+- 時系列の順番やQA集約の構造、ブロックの並び順は一切崩さないこと。
+- #や*などのMarkdown記号は使用せず、改行や①②③や・を用いてすっきりとまとめること。
+- 46文字幅の折り返しを維持すること。
+
+現在の議事録案:
+${currentText}` }]
+                        }]
+                    })
+                });
+
+                if (dataProof.error) throw new Error(dataProof.error.message);
+                let proofedText = dataProof.candidates[0].content.parts[0].text;
+                proofedText = wrapTextByLength(proofedText, 46);
+
+                editor.value = proofedText;
+                showStatus("✨ 最終ビジメ校正（体言止め・常体化）が完了しました！");
+                document.getElementById('statusMessage').classList.remove('loading-dots');
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終ビジメ校正（名詞化・体言止め・常体表現の徹底）が完了しました。内容を確認してWordダウンロードに進んでください。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -748,7 +798,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の製造業会議の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さず、QAがない場合は無理にQAを作らずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
                         }]
                     })
                 });
@@ -758,7 +808,7 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 製造業の文脈に合わせて修正を行い、46文字単位で再整形しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、46文字単位で再整形しました。</div>`;
                 history.scrollTop = history.scrollHeight;
             } catch (e) {
                 if (e.message !== 'AbortError') {
@@ -839,7 +889,7 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('ステップ4：最新のエディター内容、通常改行、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
+                alert('ステップ4：最終校正済みのテキスト、通常改行、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error("Word生成エラー詳細:", err);
                 let errMsg = err.message || JSON.stringify(err);
