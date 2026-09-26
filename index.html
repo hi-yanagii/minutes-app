@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.2）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.3）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -77,7 +77,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.2</span>
+        <span class="app-version">Ver2.0.3</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -636,7 +636,7 @@
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（テキスト直接貼り付け対応） ---
+        // --- ステップ3：時系列ブロック統合・整形（Q/A/要望・指示形式の適用） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -656,7 +656,7 @@
             }
 
             try {
-                showStatus("製造会社会議の文脈に沿って時系列ブロックを維持し統合中");
+                showStatus("製造会社会議の文脈に沿って時系列ブロックを統合し、Q/A/要望形式に整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -670,6 +670,11 @@
 【重要ルール】
 - 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのままブロック単位で保持して記載すること。
 - たとえ同じテーマであっても、会議の異なる時間帯で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロックとして独立させて記載すること。
+- テキスト内に含まれる質問や回答、要望や指示事項については、必要に応じて以下の形式に整理して記載すること：
+Q: [質問内容]
+A: [回答内容]
+要望・指示： [要望や指示事項の内容]
+（※ただし、QAで完結している部分や要望・指示が存在しない場合は、無理に「要望・指示：」の項目を作らないこと）
 - 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」と記載すること。
 - #や*などのMarkdown記号は一切使用せず、改行や①②③や・を用いてすっきりとまとめる。
 - 日時や場所、タイトルは本文に入力しない。
@@ -684,16 +689,16 @@ ${targetText}` }]
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                showStatus("✨ 時系列ブロックの統合が完了しました！");
+                showStatus("✨ 時系列ブロックの統合とQ/A形式への整理が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。続いて「QA集約」または「最終議事録校正」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合とQ/A/要望・指示形式への整理が完了しました。続いて「QA集約」または「最終議事録校正」ボタンを押してください。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- QA集約ボタン：文章の後半に時系列順に移動させる（Q/A/要望形式） ---
+        // --- QA集約ボタン：文章の後半に時系列順に移動させる ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -716,11 +721,12 @@ ${targetText}` }]
                         contents: [{
                             parts: [{ text: `以下の製造会社会議の議事録案を再構成してください。
 【指示】
-- 本文中のすべての質疑応答（QA）および出された要望を抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
+- 本文中のすべての質疑応答（QA）および出された要望・指示を抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
 - 抽出する際は、必ず以下の形式に統一して記述すること：
 Q: [質問内容]
 A: [回答内容]
-要望： [要望・意見内容]
+要望・指示： [要望・指示内容]
+（※QAで完結している場合は無理に要望・指示は作らないこと）
 - 前半の各議案の本体部分からは散らばったQAや要望を整理し、後半に集約すること。
 - もし会議全体を通じてQAや要望が一切存在しない場合は、無理に作らず元の構造を維持すること。
 - #や*などの記号は使用しないこと。
@@ -739,7 +745,7 @@ ${currentText}` }]
                 editor.value = updatedText;
                 showStatus("✨ QA・要望集約（後半へのまとめ）が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望をQ/A/要望形式で文章の後半に時系列順に集約しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 質疑応答と要望・指示を文章の後半に時系列順に集約しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -771,7 +777,7 @@ ${currentText}` }]
 【必須ルール】
 - 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
 - 礼式にこだわり、製造業の公式な議事録・報告書としてふさわしい丁寧かつ引き締まったトーンに整えること。
-- 後半の「【質疑応答・意見交換まとめ】」にあるQ: / A: / 要望： の形式は崩さずに維持すること。
+- 「Q: / A: / 要望・指示：」の形式がある場合はその構造を崩さずに維持すること。
 - 時系列の順番やブロックの並び順は一切崩さないこと。
 - #や*などのMarkdown記号は使用せず、改行や①②③や・を用いてすっきりとまとめること。
 - 46文字幅の折り返しを維持すること。
@@ -817,7 +823,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造（Q/A/要望形式など）を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造（Q/A/要望・指示形式など）を崩さずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
                         }]
                     })
                 });
