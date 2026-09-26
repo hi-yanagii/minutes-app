@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（ステップ進行・QA集約対応版）</title>
+    <title>議事録くん！！（製造業会議・ステップ進行対応版）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -70,17 +70,13 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.0 (ステップ進行・QA集約対応版)</span>
+        <span class="app-version">Ver2.2.0 (製造業会議前提・ボタン集約版)</span>
     </div>
 
-    <!-- ステップ1＆2：音声ファイルと文字起こし・個別要約（ここで停止） -->
+    <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
     <section>
         <div class="section-header">
-            <h2>① 音声アップロード & 文字起こし・個別要約（ステップ1・2）</h2>
-            <div style="display: flex; gap: 10px;">
-                <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="padding: 8px 20px; font-size: 0.95em; height: 40px;">🚀 ステップ1・2を実行（文字起こしまで）</button>
-                <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="padding: 8px 20px; font-size: 0.95em; height: 40px; display: none;">🛑 中止する</button>
-            </div>
+            <h2>① 録音データのアップロード & メタデータ入力</h2>
         </div>
 
         <div style="margin-bottom: 15px;">
@@ -133,17 +129,19 @@
         </div>
     </section>
 
-    <!-- ステップ2.5＆3：手動進行ボタンエリア -->
+    <!-- 処理コントロールエリア（すべての実行ボタンをここに集約） -->
     <section style="background: #f0f7ff; border: 1px dashed #0066cc;">
         <div class="section-header" style="border-bottom-color: #0066cc;">
-            <h2>② 統合整形 & QA集約コントロール（ステップ3）</h2>
+            <h2>② 処理コントロール（製造業会議向け ステップ1〜3 ＆ QA集約）</h2>
         </div>
         <p style="font-size: 0.85em; color: #555; margin-top: 0; margin-bottom: 15px;">
-            ※ 上のステップ1・2で文字起こしが完了したら、下のボタンを押して順番に整形を進めてください。
+            ※ 製造会社の会議（品質・安全・生産管理等）を前提に処理を行います。上の準備ができたらボタンを順番に押してください。
         </p>
-        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <button onclick="runStep3Integration()" class="btn-warning" style="flex: 1; min-height: 44px; font-size: 0.95em;">⚙️ ステップ3：時系列ブロック統合・整形を実行</button>
-            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-height: 44px; font-size: 0.95em;">💬 QA集約：質疑応答を文章後半に時系列順にまとめる</button>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 220px; height: 44px; font-size: 0.95em;">🚀 1. ステップ1・2を実行（文字起こし）</button>
+            <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="width: 120px; height: 44px; font-size: 0.95em; display: none;">🛑 中止する</button>
+            <button onclick="runStep3Integration()" class="btn-warning" style="flex: 1; min-width: 220px; height: 44px; font-size: 0.95em;">⚙️ 2. ステップ3：時系列ブロック統合・整形</button>
+            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 220px; height: 44px; font-size: 0.95em;">💬 3. QA集約（文章後半に時系列順まとめ）</button>
         </div>
     </section>
 
@@ -158,10 +156,10 @@
             <div class="pane">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
-                    <div class="chat-msg ai"><b>[AI]:</b> 音声ファイルを読み込み、ステップ1・2を実行してください。</div>
+                    <div class="chat-msg ai"><b>[AI]:</b> 製造会社の会議音声を読み込み、上の「ステップ1・2を実行」ボタンを押してください。</div>
                 </div>
                 <div style="display: flex; gap: 5px; align-items: flex-end;">
-                    <textarea id="chatInput" class="chat-input" placeholder="例: 専門用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
+                    <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
                     <button id="sendBtn" onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
             </div>
@@ -393,7 +391,6 @@
             loadLocationsToSelect();
             loadFormatsToSelect();
             
-            // 本日の日付を YYYY/MM/DD 形式で初期設定（時間は含めない）
             const now = new Date();
             const yyyy = now.getFullYear();
             const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -414,11 +411,10 @@
             return key;
         }
 
-        // 音声データをWAV Blobに変換するヘルパー関数
         function audioBufferToWav(buffer) {
             const numOfChan = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
-            const format = 1; // PCM
+            const format = 1;
             const bitDepth = 16;
             
             const samples = buffer.length;
@@ -512,7 +508,6 @@
             }
         }
 
-        // 処理を途中で中止する関数
         function cancelProcessing() {
             if (abortController) {
                 abortController.abort();
@@ -567,7 +562,7 @@
                     chunks.push(wavBlob);
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。順次テキスト化および個別要約を開始します`);
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。製造業会議の文脈を考慮して順次テキスト化および個別要約を開始します`);
                 let accumulatedRawText = "";
 
                 for (let i = 0; i < chunks.length; i++) {
@@ -584,7 +579,7 @@
                             contents: [{
                                 parts: [
                                     audioPart,
-                                    { text: `【指示】これは長時間の音声のパート${partNum}です。この音声の発言内容を正確なテキスト文字列に変換してください。音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
+                                    { text: `【指示】これは製造会社の会議音声のパート${partNum}です。製造現場特有の専門用語や技術的表現に留意し、正確なテキスト文字列に変換してください。音声が不明瞭な部分は勝手に推測せず「【音声不明瞭・聞き取り不能】」と記載してください。` }
                                 ]
                             }]
                         })
@@ -600,7 +595,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             contents: [{
-                                parts: [{ text: `以下のテキストデータは、長時間の会議音声のパート${partNum}の文字起こしです。このパートにおける主要な発言内容、決定事項、議論の要点を時系列順に簡潔にまとめてください。\n\n${partText}` }]
+                                parts: [{ text: `以下のテキストデータは、製造会社の会議音声のパート${partNum}の文字起こしです。この製造現場の会議（品質、安全、工程管理等）における主要な発言内容、決定事項、議論の要点を時系列順に簡潔にまとめてください。\n\n${partText}` }]
                             }]
                         })
                     });
@@ -615,9 +610,9 @@
                     editor.value = accumulatedRawText;
                 }
 
-                showStatus("✨ ステップ1・2（文字起こし・個別要約）が完了しました！内容を確認し、上の「ステップ3」ボタンを押してください。");
+                showStatus("✨ ステップ1・2（文字起こし・個別要約）が完了しました！内容を確認し、上の「2. ステップ3」ボタンを押してください。");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ1・2が完了しました。内容を確認して、次の「ステップ3：時系列ブロック統合・整形」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ1・2が完了しました。製造会社の会議内容であることを踏まえて文字起こし・要約を行いました。次の「2. ステップ3：時系列ブロック統合・整形」ボタンを押してください。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
@@ -643,7 +638,7 @@
             const history = document.getElementById('chatHistory');
 
             try {
-                showStatus("時系列ブロックを維持してビジネス議事録に統合・整形中");
+                showStatus("製造会社会議の文脈に沿って時系列ブロックを維持し統合・整形中");
                 const combinedSummaries = savedPartSummaries.join("\n\n");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -651,10 +646,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の各パートの要約データをすべて統合し、ビジネス用の議事録形式に最終校正してください。
+                            parts: [{ text: `以下の各パートの要約データをすべて統合し、製造会社の会議用の議事録形式に最終校正してください。
+【前提条件】
+- 内容は「製造会社の会議（品質管理、安全衛生、工程・生産管理、設備保全など）」であるため、製造現場の文脈にふさわしい専門的なトーンを維持すること。
+
 【重要ルール】
 - 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのままブロック単位で保持して記載すること。
-- たとえ同じテーマ（例：「安全」など）であっても、会議の異なる時間帯（前半と後半など）で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロック（例：議案1、議案3など）として独立させて記載すること。
+- たとえ同じテーマ（例：「品質不良」や「安全」など）であっても、会議の異なる時間帯（前半と後半など）で別々に話題に上がった場合は、一つに統合・合成せず、登場した順序の通りに別のブロック（例：議案1、議案3など）として独立させて記載すること。
 - 質疑応答（QA）が存在する場合のみ【質疑応答】またはQ. / A.形式含めること。QAが存在しない話題や議論については無理にQ.やA.の形式に仕立て上げず、通常の記載形式で自然にまとめること。
 - 聞き取れない部分や不明瞭な箇所は「【音声不明瞭のため確認できず】」とそのまま記載すること。
 - 名詞化、体現止め、常体表現（だ・である調）を基本とする。
@@ -671,9 +669,9 @@ ${combinedSummaries}` }]
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                showStatus("✨ ステップ3：統合・時系列整形が完了しました！");
+                showStatus("✨ ステップ3：製造業向け時系列ブロック統合・整形が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ3の時系列ブロック統合・整形が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> ステップ3の時系列ブロック統合・整形（製造業会議前提）が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -694,14 +692,14 @@ ${combinedSummaries}` }]
             }
 
             try {
-                showStatus("質疑応答（QA）を抽出して文章の後半に時系列順に集約中");
+                showStatus("製造業会議の質疑応答（QA）を抽出して文章の後半に時系列順に集約中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の議事録案を再構成してください。
+                            parts: [{ text: `以下の製造会社会議の議事録案を再構成してください。
 【指示】
 - 本文中のすべての質疑応答（QA）部分を抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
 - 前半の各議案の本体部分からは散らばったQAを整理し、後半に集約してすっきりと見やすくすること。
@@ -722,7 +720,7 @@ ${currentText}` }]
                 editor.value = updatedText;
                 showStatus("✨ QA集約（後半への時系列順まとめ）が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> QA集約処理が完了しました。質疑応答が文章の後半に時系列順にまとめられました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> QA集約処理が完了しました。製造業会議の質疑応答が文章の後半に時系列順にまとめられました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -749,7 +747,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さず、QAがない場合は無理にQAを作らずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
+                            parts: [{ text: `現在の製造業会議の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、時系列の順序を崩さず、QAがない場合は無理にQAを作らずに修正後の全文を日本語で出力してください。#や*などの記号は使用しないでください。` }]
                         }]
                     })
                 });
@@ -759,7 +757,7 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、46文字単位で再整形しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 製造業の文脈に合わせて修正を行い、46文字単位で再整形しました。</div>`;
                 history.scrollTop = history.scrollHeight;
             } catch (e) {
                 if (e.message !== 'AbortError') {
