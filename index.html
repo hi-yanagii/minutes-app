@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.21）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.22）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.21</span>
+        <span class="app-version">Ver2.0.22</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -272,7 +272,7 @@
             }
         }
 
-        // --- ラベル幅に応じた動的インデント付きスマート折り返し関数 ---
+        // --- スマート折り返し関数（46文字幅・タイトル改行＆インデント対応） ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
             const paragraphs = str.split(/\n\s*\n/);
@@ -286,22 +286,9 @@
                     let trimmed = line.trim();
                     if (!trimmed) continue;
 
-                    // 行頭のラベル（Q:、A:、①〜⑩、要望・指示：など）を検出してインデント幅を自動計算
-                    let prefixMatch = trimmed.match(/^([QAX]:|[①-⑩]|\d+[\.\)]|要望・指示：)\s*/);
-                    let indentSpaces = "";
-                    if (prefixMatch) {
-                        let prefixLen = prefixMatch[0].length;
-                        // ラベルの文字数分（全角・半角換算）に合わせたスペースを動的に生成
-                        indentSpaces = " ".repeat(Math.ceil(prefixLen / 2));
-                    }
-
                     let currentLine = trimmed;
-                    let isFirstLine = true;
-
-                    while (currentLine.length > (isFirstLine ? maxLen : (maxLen - indentSpaces.length))) {
-                        let effectiveMax = isFirstLine ? maxLen : (maxLen - indentSpaces.length);
-                        let subStr = currentLine.substring(0, effectiveMax + 1);
-                        
+                    while (currentLine.length > maxLen) {
+                        let subStr = currentLine.substring(0, maxLen + 1);
                         let lastSpace = Math.max(
                             subStr.lastIndexOf('、'), 
                             subStr.lastIndexOf('。'), 
@@ -318,24 +305,13 @@
                             subStr.lastIndexOf('の')
                         );
                         
-                        let breakIdx = (lastSpace > effectiveMax * 0.4) ? (lastSpace + 1) : effectiveMax;
+                        let breakIdx = (lastSpace > maxLen * 0.4) ? (lastSpace + 1) : maxLen;
                         
-                        let chunk = currentLine.substring(0, breakIdx).trim();
-                        if (!isFirstLine) {
-                            processedLines.push(indentSpaces + chunk);
-                        } else {
-                            processedLines.push(chunk);
-                        }
-
+                        processedLines.push(currentLine.substring(0, breakIdx).trim());
                         currentLine = currentLine.substring(breakIdx).trim();
-                        isFirstLine = false;
                     }
                     if (currentLine.length > 0) {
-                        if (!isFirstLine) {
-                            processedLines.push(indentSpaces + currentLine);
-                        } else {
-                            processedLines.push(currentLine);
-                        }
+                        processedLines.push(currentLine);
                     }
                 }
                 resultParagraphs.push(processedLines.join('\n'));
@@ -806,7 +782,7 @@
             const terms = getCustomTerms();
             let termPromptSection = "";
             if (terms.length > 0) {
-                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」という正式な専門用語（漢字など）に変換すること`).join('\n');
+                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」という正式な専門用語に変換すること`).join('\n');
                 termPromptSection = `\n【専門用語・固有名詞の置換ルール】\n以下の製造業専門用語辞書に合致する音声のみ、最優先で指定の漢字・表記に置き換えること：\n${termListStr}\n`;
             }
 
@@ -861,7 +837,7 @@
 【重要ルール】
 - 音声を聞き取り、聞こえた内容をそのまま忠実に文字起こししてください。
 - 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
-- 専門用語辞書の適用以外は、AI側で意味を推測して言葉を書き換えたりしないこと。
+- 専門用語辞書の適用以外は、AI側で勝手に意味を推測して言葉を書き換えたりしないこと。
 - 聞き取りづらい部分は「【音声不明瞭・聞き取り不能】」と記載すること。
 ${termPromptSection}` }
                                 ]
@@ -908,7 +884,7 @@ ${termPromptSection}` }
             }
 
             try {
-                showStatus("時系列ブロックを統合し、インデント・レイアウトを整理中");
+                showStatus("時系列ブロックを統合し、タイトル改行・インデントを整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -916,12 +892,12 @@ ${termPromptSection}` }
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。
-【絶対厳守ルール（視認性向上・インデント・改行レイアウト）】
+【絶対厳守ルール（タイトル改行・インデント・視認性レイアウト）】
 1. 話題やトピックが変わるごとに、必ず1行の空行（改行2つ）を挟んでブロックを完全に分離して記載すること。
-2. 番号付き項目（①、②、③など）や「Q:」「A:」「要望・指示：」のラベルが存在する場合は、必ずそれぞれを独立した行で配置すること。さらに、2行目以降の先頭には適切なスペースを入れて字下げ（インデント）を行い、本文の頭の文字がピタッと縦に揃うように整えること。
-3. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
-4. 漢数字は使用せず、算用数字や丸数字を使用すること。
-5. 日時や場所、タイトルは本文に入力しない。
+2. ナンバー付き項目（①、②、③など）については、「⑥ エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟んで、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
+3. 「Q:」「A:」の形式は従来通り変更せずそのまま維持すること。
+4. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
+5. 漢数字は使用せず、算用数字や丸数字を使用すること。
 
 ${currentText}` }]
                         }]
@@ -935,7 +911,7 @@ ${currentText}` }]
                 editor.value = finalResult;
                 showStatus("✨ 時系列ブロックの統合と整理が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合とインデント整理が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合とタイトル改行・インデント整理が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -964,9 +940,9 @@ ${currentText}` }]
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下の会議の議事録案を再構成してください。
-- 「Q」と「A」がセットになっているものだけを抽出し、文章の後半に「【質疑応答・意見交換まとめ】」として時系列順に集約すること。
-- 各項目の前後には必ず1行の空行を入れ、2行目以降はインデントを入れて縦に揃えること。
-- 漢数字は使用せず、算用数字や丸数字を使用すること。
+- 「Q」と「A」がセットになっているものだけを抽出し、文章の後半に「【質疑応答・意見交換まとめ】」として時系列順に集約すること（Q: A:の形式はそのまま維持）。
+- ナンバー付き項目はタイトル行の後に改行と全角スペース（インデント）を入れること。
+- 各項目の前後には必ず1行の空行を入れること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -990,8 +966,9 @@ ${currentText}` }]
 
         // --- 最終議事録校正 ---
         async function runFinalProofreading() {
-            const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            const apiKey = getapiKeyIfValid();
+            const apiKeyInput = getApiKey();
+            if (!apiKeyInput) { alert('Gemini APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
             const currentText = editor.value.trim();
@@ -1004,7 +981,7 @@ ${currentText}` }]
             try {
                 showStatus("名詞化・体言止め・常体表現を基本とした最終議事録校正中");
 
-                const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKeyInput}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1013,7 +990,8 @@ ${currentText}` }]
 【必須ルール】
 - 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
 - 話題が変わる段落の間には必ず1行の空行を入れること。
-- 番号付き項目やQ:A:などのラベル行の先頭にはラベルに応じたスペースを確保し、2行目以降の先頭にもインデントを入れて本文の頭を綺麗に縦に揃えること。
+- ナンバー付き項目（①、②など）は、「⑥ エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟んで、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
+- Q: A:の形式はそのまま変更せず維持すること。
 - 漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
 
 現在の議事録案:
@@ -1057,7 +1035,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、インデント・縦揃え・46文字幅の折り返しを維持して全文を出力してください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、タイトル改行・インデント・46文字幅の折り返しを維持して全文を出力してください。` }]
                         }]
                     })
                 });
