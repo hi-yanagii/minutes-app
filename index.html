@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.18）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.19）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.18</span>
+        <span class="app-version">Ver2.0.19</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -272,7 +272,7 @@
             }
         }
 
-        // --- 強力なスマート折り返し関数（短い改行を一度つないで必ず46文字で再ラップ） ---
+        // --- 改良型スマート折り返し関数（46文字幅を維持しつつ、単語や文節の途中で切れないよう区切りのいい位置で改行） ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
             const paragraphs = str.split(/\n\s*\n/);
@@ -288,22 +288,30 @@
 
                     let currentLine = trimmed;
                     while (currentLine.length > maxLen) {
-                        let breakIdx = maxLen;
                         let subStr = currentLine.substring(0, maxLen + 1);
+                        // 46文字以内で、句読点、スペース、括弧、読点、助詞などの区切り文字を後ろから探す
                         let lastSpace = Math.max(
                             subStr.lastIndexOf('、'), 
                             subStr.lastIndexOf('。'), 
                             subStr.lastIndexOf(' '), 
                             subStr.lastIndexOf('（'),
-                            subStr.lastIndexOf('・')
+                            subStr.lastIndexOf('）'),
+                            subStr.lastIndexOf('・'),
+                            subStr.lastIndexOf('：'),
+                            subStr.lastIndexOf('、'),
+                            subStr.lastIndexOf('て'),
+                            subStr.lastIndexOf('に'),
+                            subStr.lastIndexOf('を'),
+                            subStr.lastIndexOf('は'),
+                            subStr.lastIndexOf('が'),
+                            subStr.lastIndexOf('の')
                         );
                         
-                        if (lastSpace > maxLen * 0.6) {
-                            breakIdx = lastSpace + 1;
-                        }
+                        // もし適切な区切り位置が見つかったらそこで改行（ただし極端に手前すぎる場合はmaxLen付近で妥協）
+                        let breakIdx = (lastSpace > maxLen * 0.4) ? (lastSpace + 1) : maxLen;
                         
-                        processedLines.push(currentLine.substring(0, breakIdx));
-                        currentLine = currentLine.substring(breakIdx);
+                        processedLines.push(currentLine.substring(0, breakIdx).trim());
+                        currentLine = currentLine.substring(breakIdx).trim();
                     }
                     if (currentLine.length > 0) {
                         processedLines.push(currentLine);
@@ -898,7 +906,7 @@ ${termPromptSection}` }
 4. 「【音声不明瞭につき確認不可】」などの不要な注記タグは出力せず、綺麗に整理してまとめること。
 5. ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字（1、2、3等）や丸数字（①、②、③等）を使用すること。
 6. 日時や場所、タイトルは本文に入力しない。
-7. 途中で短い改行を入れず、必ず全角46文字幅いっぱいで折り返しを維持すること。
+7. AI側で勝手に短い途中の改行を入れず、文脈が続く部分は46文字幅に達するまで1行としてつなげて出力すること。
 
 ${currentText}` }]
                         }]
@@ -948,7 +956,7 @@ ${currentText}` }]
 - ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字や丸数字を使用すること。
 - もし会議全体を通してQとAのセットが一切存在しない場合は、無理にまとめブロックを作らず、現在のきれいな時系列の構造をそのまま維持して終了すること。
 - #や*などの記号は使用しないこと。
-- 途中で短い改行を入れず、必ず全角46文字幅いっぱいで折り返しを厳守すること。
+- AI側で勝手に途中で改行を入れず、46文字幅に達するまで1行としてつなげること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -1001,7 +1009,7 @@ ${currentText}` }]
 - ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、必ず算用数字（1、2、3等）や丸数字（①、②、③等）を使用すること。
 - 時系列の順番やブロックの並び順は一切崩さないこと。
 - #や*などのMarkdown記号は使用せず、改行や①②③や・を用いてすっきりとまとめること。
-- 途中で短い改行を絶対にせず、必ず【全角46文字幅いっぱい】で文章を折り返すこと（改行を入れる場合は必ず46文字に達した位置か段落・項目の区切りにすること）。
+- AI側で勝手に途中で細かな改行を入れず、意味や文脈が続く部分は46文字幅に達するまで1行として長くつなげて出力すること（プログラム側で最適な区切りで折り返します）。
 
 現在の議事録案:
 ${currentText}` }]
@@ -1044,7 +1052,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造を崩さずに修正後の全文を日本語で出力してください。トピック間や箇条書きの項目（①②③やQ:A:など）の前事業には必ず1行の空行を入れ、縦方向に独立させて配置すること。ナンバーには漢数字を使用せず、#や*などの記号は使用せず、全角46文字幅の折り返しを厳守してください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造を崩さずに修正後の全文を日本語で出力してください。トピック間や箇条書きの項目（①②③やQ:A:など）の前後には必ず1行の空行を入れ、縦方向に独立させて配置すること。AI側で勝手に途中で改行を入れず、46文字幅に達するまで1行としてつなげること。` }]
                         }]
                     })
                 });
