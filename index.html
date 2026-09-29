@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.20）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.21）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.20</span>
+        <span class="app-version">Ver2.0.21</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -272,7 +272,7 @@
             }
         }
 
-        // --- 改良型スマート折り返し関数（46文字幅を維持しつつ、単語や文節の途中で切れないよう区切りのいい位置で改行） ---
+        // --- ラベル幅に応じた動的インデント付きスマート折り返し関数 ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
             const paragraphs = str.split(/\n\s*\n/);
@@ -286,9 +286,22 @@
                     let trimmed = line.trim();
                     if (!trimmed) continue;
 
+                    // 行頭のラベル（Q:、A:、①〜⑩、要望・指示：など）を検出してインデント幅を自動計算
+                    let prefixMatch = trimmed.match(/^([QAX]:|[①-⑩]|\d+[\.\)]|要望・指示：)\s*/);
+                    let indentSpaces = "";
+                    if (prefixMatch) {
+                        let prefixLen = prefixMatch[0].length;
+                        // ラベルの文字数分（全角・半角換算）に合わせたスペースを動的に生成
+                        indentSpaces = " ".repeat(Math.ceil(prefixLen / 2));
+                    }
+
                     let currentLine = trimmed;
-                    while (currentLine.length > maxLen) {
-                        let subStr = currentLine.substring(0, maxLen + 1);
+                    let isFirstLine = true;
+
+                    while (currentLine.length > (isFirstLine ? maxLen : (maxLen - indentSpaces.length))) {
+                        let effectiveMax = isFirstLine ? maxLen : (maxLen - indentSpaces.length);
+                        let subStr = currentLine.substring(0, effectiveMax + 1);
+                        
                         let lastSpace = Math.max(
                             subStr.lastIndexOf('、'), 
                             subStr.lastIndexOf('。'), 
@@ -305,13 +318,24 @@
                             subStr.lastIndexOf('の')
                         );
                         
-                        let breakIdx = (lastSpace > maxLen * 0.4) ? (lastSpace + 1) : maxLen;
+                        let breakIdx = (lastSpace > effectiveMax * 0.4) ? (lastSpace + 1) : effectiveMax;
                         
-                        processedLines.push(currentLine.substring(0, breakIdx).trim());
+                        let chunk = currentLine.substring(0, breakIdx).trim();
+                        if (!isFirstLine) {
+                            processedLines.push(indentSpaces + chunk);
+                        } else {
+                            processedLines.push(chunk);
+                        }
+
                         currentLine = currentLine.substring(breakIdx).trim();
+                        isFirstLine = false;
                     }
                     if (currentLine.length > 0) {
-                        processedLines.push(currentLine);
+                        if (!isFirstLine) {
+                            processedLines.push(indentSpaces + currentLine);
+                        } else {
+                            processedLines.push(currentLine);
+                        }
                     }
                 }
                 resultParagraphs.push(processedLines.join('\n'));
@@ -762,7 +786,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし（挨拶文の完全排除 & 勝手な推測禁止 & 専門用語辞書適用） ---
+        // --- ステップ1 & 2：音声分割・文字起こし ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -816,7 +840,7 @@
                     chunks.push(wavBlob);
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。音声データの忠実な文字起こしを開始します`);
+                showStatus(`音声を全 ${chunks.length} パートに分割しました。文字起こしを開始します`);
                 let accumulatedRawText = "";
 
                 for (let i = 0; i < chunks.length; i++) {
@@ -836,9 +860,9 @@
                                     { text: `【指示】これは製造会社の会議音声のパート${partNum}です。
 【重要ルール】
 - 音声を聞き取り、聞こえた内容をそのまま忠実に文字起こししてください。
-- 「はい、ご指示に従い…」や挨拶、前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
-- 登録された専門用語辞書の適用以外は、AI側で前後の文脈から勝手に意味を推測して言葉を書き換えたり美化したりしないこと。
-- 聞き取りづらい部分や曖昧な部分は勝手に推測せず、「【音声不明瞭・聞き取り不能】」と厳密に記載すること。
+- 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
+- 専門用語辞書の適用以外は、AI側で意味を推測して言葉を書き換えたりしないこと。
+- 聞き取りづらい部分は「【音声不明瞭・聞き取り不能】」と記載すること。
 ${termPromptSection}` }
                                 ]
                             }]
@@ -854,11 +878,10 @@ ${termPromptSection}` }
 
                 showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 専門用語辞書に基づく置換と、挨拶文を含まない忠実な文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 処理を中断しました。</div>`;
                 } else {
                     showStatus("❌ エラー発生", true);
                     alert('エラー: ' + e.message);
@@ -870,7 +893,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（※インデント・視認性強化ルール徹底） ---
+        // --- ステップ3：時系列ブロック統合・整形 ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -880,12 +903,12 @@ ${termPromptSection}` }
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に上の「1. 文字起こし実行」を行うか、エディタ欄にテキストを直接貼り付けてください。');
+                alert('先に文字起こしを実行するか、テキストを貼り付けてください。');
                 return;
             }
 
             try {
-                showStatus("エディターの最新テキストを元に、時系列ブロックを統合しQ/A形式に整理中");
+                showStatus("時系列ブロックを統合し、インデント・レイアウトを整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -893,17 +916,12 @@ ${termPromptSection}` }
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。
-【前提条件】
-- 内容は「製造会社の会議（品質管理、安全衛生、工程・生産管理、設備保全など）」であるため、製造現場の文脈にふさわしい専門的なトーンを維持すること。
-
 【絶対厳守ルール（視認性向上・インデント・改行レイアウト）】
-1. 文面を1つの長い塊（ベタ書き）にせず、話題やトピックが変わるごとに、必ず1行の空行（改行2つ）を挟んでブロックを完全に分離して記載すること。
-2. 箇条書きの番号付き項目（①、②、③、④、⑤、⑥など）や、「Q:」「A:」「要望・指示：」のラベルが存在する場合は、必ずそれぞれを独立した行で配置し、他の文章と連結させないこと。さらに、各項目の先頭には全角スペース（または半角スペース）を挿入して字下げ（インデント）を行い、内容を細かく読まなくても文の塊や項目がパッと見で一発で発見できるように美しく整えること。
-3. 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのまま保持して記載すること。
-4. 「【音声不明瞭につき確認不可】」などの不要な注記タグは出力せず、綺麗に整理してまとめること。
-5. ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字（1、2、3等）や丸数字（①、②、③等）を使用すること。
-6. 日時や場所、タイトルは本文に入力しない。
-7. AI側で勝手に短い途中の改行を入れず、文脈が続く部分は46文字幅に達するまで1行としてつなげて出力すること。
+1. 話題やトピックが変わるごとに、必ず1行の空行（改行2つ）を挟んでブロックを完全に分離して記載すること。
+2. 番号付き項目（①、②、③など）や「Q:」「A:」「要望・指示：」のラベルが存在する場合は、必ずそれぞれを独立した行で配置すること。さらに、2行目以降の先頭には適切なスペースを入れて字下げ（インデント）を行い、本文の頭の文字がピタッと縦に揃うように整えること。
+3. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
+4. 漢数字は使用せず、算用数字や丸数字を使用すること。
+5. 日時や場所、タイトルは本文に入力しない。
 
 ${currentText}` }]
                         }]
@@ -915,16 +933,16 @@ ${currentText}` }]
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                showStatus("✨ 時系列ブロックの統合とQ/A形式への整理が完了しました！");
+                showStatus("✨ 時系列ブロックの統合と整理が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの修正内容を反映した時系列ブロックの統合とQ/A形式への整理が完了しました。続いて「QA集約」または「最終議事録校正」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合とインデント整理が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- QA集約ボタン（※インデント・視認性強化ルール徹底） ---
+        // --- QA集約ボタン ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -933,27 +951,22 @@ ${currentText}` }]
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に議事録データを準備・統合してください。');
+                alert('先に議事録データを準備してください。');
                 return;
             }
 
             try {
-                showStatus("エディターの最新テキストを元に、質疑応答のセットを抽出して後半に時系列順に集約中");
+                showStatus("質疑応答セットを抽出して後半に時系列順に集約中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の製造会社会議の議事録案を再構成してください。
-【指示】
-- 本文中のすべてのやり取りのうち、「Q（質問）」と「A（回答）」、そして要望・指示が綺麗にセットになっているものだけを抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
-- 要望や指示単体のもの、あるいはQ&Aのセットになっていないものは後半へ無理に移動させず、もともとの時系列の位置にそのまま残してください。
-- すべてのトピック間、および「Q:」「A:」「要望・指示：」の各項目の前後には必ず1行の空行を入れ、縦方向にスッキリと独立して並ぶようにすること。さらに、各項目の先頭にはスペース（インデント）を入れて視認性を高めること。
-- ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字や丸数字を使用すること。
-- もし会議全体を通してQとAのセットが一切存在しない場合は、無理にまとめブロックを作らず、現在のきれいな時系列の構造をそのまま維持して終了すること。
-- #や*などの記号は使用しないこと。
-- AI側で勝手に途中で改行を入れず、46文字幅に達するまで1行としてつなげること。
+                            parts: [{ text: `以下の会議の議事録案を再構成してください。
+- 「Q」と「A」がセットになっているものだけを抽出し、文章の後半に「【質疑応答・意見交換まとめ】」として時系列順に集約すること。
+- 各項目の前後には必ず1行の空行を入れ、2行目以降はインデントを入れて縦に揃えること。
+- 漢数字は使用せず、算用数字や丸数字を使用すること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -966,16 +979,16 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                showStatus("✨ 質疑応答セットの後半集約が完了しました！");
+                showStatus("✨ QA集約が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの内容をベースに、Q&Aがセットになっているものだけを抽出し後半に時系列順に集約しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aの後半集約が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- 最終議事録校正（※インデント・視認性強化ルール徹底） ---
+        // --- 最終議事録校正 ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -984,7 +997,7 @@ ${currentText}` }]
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に校正する議事録データを作成してください。');
+                alert('先に校正するデータを作成してください。');
                 return;
             }
 
@@ -996,18 +1009,12 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の議事録案に対して、正式なビジネス文書としての最終校正を行ってください。
-【必須ルール（視認性向上・インデント・改行レイアウト）】
+                            parts: [{ text: `以下の議事録案に対して最終校正を行ってください。
+【必須ルール】
 - 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
-- 礼式にこだわり、製造業の公式な議事録・報告書としてふさわしい丁寧かつ引き締まったトーンに整えること。
-- 話題やトピックが変わる段落の間には、必ず1行の空行（改行2つ）を入れてブロックごとに完全に独立させること。
-- 箇条書きの番号付き項目（①、②、③、④、⑤、⑥など）や、「Q: / A: / 要望・指示：」の形式が存在する場合は、必ずそれぞれを縦に並ぶ独立した行として配置し、文章が詰まらないように美しく整えること。
-- さらに、すべての箇条書き番号や「Q:/A:/要望・指示：」などのラベル行の先頭には、必ず全角または半角スペース（インデント）を入れて字下げを行い、内容を細かく読まなくても文の塊や項目がパッと見で一発で発見できるようにすること。
-- 「【音声不明瞭につき確認不可】」などの不要な注記タグは一切出力しないこと。
-- ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、必ず算用数字（1、2、3等）や丸数字（①、②、③等）を使用すること。
-- 時系列の順番やブロックの並び順は一切崩さないこと。
-- #や*などのMarkdown記号は使用せず、改行や①②③や・を用いてすっきりとまとめること。
-- AI側で勝手に途中で細かな改行を入れず、意味や文脈が続く部分は46文字幅に達するまで1行として長くつなげて出力すること（プログラム側で最適な区切りで折り返します）。
+- 話題が変わる段落の間には必ず1行の空行を入れること。
+- 番号付き項目やQ:A:などのラベル行の先頭にはラベルに応じたスペースを確保し、2行目以降の先頭にもインデントを入れて本文の頭を綺麗に縦に揃えること。
+- 漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -1022,14 +1029,14 @@ ${currentText}` }]
                 editor.value = proofedText;
                 showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの内容をベースに最終議事録校正（名詞化・体言止め・常体表現の徹底、インデント・視認性の最適化、46文字幅・漢数字禁止の適用）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- AIチャット修正機能（送信は青） ---
+        // --- AIチャット修正機能 ---
         async function sendChatMessage() {
             const apiKey = getApiKey();
             if(!apiKey) { alert('APIキーを入力してください。'); return; }
@@ -1050,7 +1057,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造を崩さずに修正後の全文を日本語で出力してください。トピック間や箇条書きの項目（①②③やQ:A:など）の前後には必ず1行の空行を入れ、各項目の先頭にはスペース（インデント）を入れて縦方向に独立させて配置すること。AI側で勝手に途中で改行を入れず、46文字幅に達するまで1行としてつなげること。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、インデント・縦揃え・46文字幅の折り返しを維持して全文を出力してください。` }]
                         }]
                     })
                 });
@@ -1060,7 +1067,7 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、インデントや独立改行を含めて46文字単位で再整形しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、再整形しました。</div>`;
                 history.scrollTop = history.scrollHeight;
             } catch (e) {
                 if (e.message !== 'AbortError') {
@@ -1069,7 +1076,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能（※会議名タグ {{会議名}} にも対応） ---
+        // --- ステップ4：Wordダウンロード機能 ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1144,15 +1151,10 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('ステップ4：最終校正済みのテキスト、インデント・視認性最適化、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
+                alert('Wordファイルのダウンロードが完了しました！');
             } catch (err) {
-                console.error("Word生成エラー詳細:", err);
-                let errMsg = err.message || JSON.stringify(err);
-                if (err.properties && err.properties.errors) {
-                    const docxErrs = err.properties.errors.map(e => e.message || JSON.stringify(e)).join(' / ');
-                    errMsg += " [詳細: " + docxErrs + "]";
-                }
-                alert('Wordファイルの生成に失敗しました: ' + errMsg);
+                console.error("Word生成エラー:", err);
+                alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
             }
         }
     </script>
