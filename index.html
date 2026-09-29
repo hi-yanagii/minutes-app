@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.19）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.20）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.19</span>
+        <span class="app-version">Ver2.0.20</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -289,7 +289,6 @@
                     let currentLine = trimmed;
                     while (currentLine.length > maxLen) {
                         let subStr = currentLine.substring(0, maxLen + 1);
-                        // 46文字以内で、句読点、スペース、括弧、読点、助詞などの区切り文字を後ろから探す
                         let lastSpace = Math.max(
                             subStr.lastIndexOf('、'), 
                             subStr.lastIndexOf('。'), 
@@ -298,7 +297,6 @@
                             subStr.lastIndexOf('）'),
                             subStr.lastIndexOf('・'),
                             subStr.lastIndexOf('：'),
-                            subStr.lastIndexOf('、'),
                             subStr.lastIndexOf('て'),
                             subStr.lastIndexOf('に'),
                             subStr.lastIndexOf('を'),
@@ -307,7 +305,6 @@
                             subStr.lastIndexOf('の')
                         );
                         
-                        // もし適切な区切り位置が見つかったらそこで改行（ただし極端に手前すぎる場合はmaxLen付近で妥協）
                         let breakIdx = (lastSpace > maxLen * 0.4) ? (lastSpace + 1) : maxLen;
                         
                         processedLines.push(currentLine.substring(0, breakIdx).trim());
@@ -571,7 +568,7 @@
             const select = document.getElementById('locationPreset');
             const val = select.value;
             if (!val) { alert('削除する場所を選択してください。'); return; }
-            if (confirm(`「${val}」を登録データから削除しますか？`)) {
+            if (confirm(`会議場所「${val}」を削除しますか？`)) {
                 let items = getLocations();
                 items = items.filter(i => i !== val);
                 localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
@@ -873,7 +870,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（※段落分け・箇条書き独立の強制ルール徹底） ---
+        // --- ステップ3：時系列ブロック統合・整形（※インデント・視認性強化ルール徹底） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -899,9 +896,9 @@ ${termPromptSection}` }
 【前提条件】
 - 内容は「製造会社の会議（品質管理、安全衛生、工程・生産管理、設備保全など）」であるため、製造現場の文脈にふさわしい専門的なトーンを維持すること。
 
-【絶対厳守ルール（改行・段落・箇条書きの独立レイアウト）】
-1. 文面を1つの長い塊（ベタ書き）にせず、話題やトピック（例：工場視察の所感、各指示事項、社長講評など）が変わるごとに、必ず1行の空行（改行2つ）を挟んでブロックを完全に分離して記載すること。
-2. 箇条書きの番号付き項目（①、②、③、④、⑤、⑥など）や、「Q:」「A:」「要望・指示：」のラベルが存在する場合は、必ずそれぞれを独立した改行（縦に並ぶ形式）で配置し、他の文章と連結させないこと。
+【絶対厳守ルール（視認性向上・インデント・改行レイアウト）】
+1. 文面を1つの長い塊（ベタ書き）にせず、話題やトピックが変わるごとに、必ず1行の空行（改行2つ）を挟んでブロックを完全に分離して記載すること。
+2. 箇条書きの番号付き項目（①、②、③、④、⑤、⑥など）や、「Q:」「A:」「要望・指示：」のラベルが存在する場合は、必ずそれぞれを独立した行で配置し、他の文章と連結させないこと。さらに、各項目の先頭には全角スペース（または半角スペース）を挿入して字下げ（インデント）を行い、内容を細かく読まなくても文の塊や項目がパッと見で一発で発見できるように美しく整えること。
 3. 会議で発言・議論された時系列の順番（タイムライン・流れ）を絶対に崩さず、登場した順序をそのまま保持して記載すること。
 4. 「【音声不明瞭につき確認不可】」などの不要な注記タグは出力せず、綺麗に整理してまとめること。
 5. ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字（1、2、3等）や丸数字（①、②、③等）を使用すること。
@@ -927,7 +924,7 @@ ${currentText}` }]
             }
         }
 
-        // --- QA集約ボタン（※改行・箇条書き独立ルール強化） ---
+        // --- QA集約ボタン（※インデント・視認性強化ルール徹底） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -952,7 +949,7 @@ ${currentText}` }]
 【指示】
 - 本文中のすべてのやり取りのうち、「Q（質問）」と「A（回答）」、そして要望・指示が綺麗にセットになっているものだけを抽出し、文章の「後半部分」にまとめて「【質疑応答・意見交換まとめ】」というブロックとして時系列順（登場した順）に集約・配置してください。
 - 要望や指示単体のもの、あるいはQ&Aのセットになっていないものは後半へ無理に移動させず、もともとの時系列の位置にそのまま残してください。
-- すべてのトピック間、および「Q:」「A:」「要望・指示：」の各項目の前後には必ず1行の空行を入れ、縦方向にスッキリと独立して並ぶようにすること。
+- すべてのトピック間、および「Q:」「A:」「要望・指示：」の各項目の前後には必ず1行の空行を入れ、縦方向にスッキリと独立して並ぶようにすること。さらに、各項目の先頭にはスペース（インデント）を入れて視認性を高めること。
 - ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、算用数字や丸数字を使用すること。
 - もし会議全体を通してQとAのセットが一切存在しない場合は、無理にまとめブロックを作らず、現在のきれいな時系列の構造をそのまま維持して終了すること。
 - #や*などの記号は使用しないこと。
@@ -978,7 +975,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 最終議事録校正（※段落分け・箇条書き独立の強制ルール徹底） ---
+        // --- 最終議事録校正（※インデント・視認性強化ルール徹底） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -1000,11 +997,12 @@ ${currentText}` }]
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下の議事録案に対して、正式なビジネス文書としての最終校正を行ってください。
-【必須ルール（改行・段落・箇条書きの独立レイアウト）】
+【必須ルール（視認性向上・インデント・改行レイアウト）】
 - 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
 - 礼式にこだわり、製造業の公式な議事録・報告書としてふさわしい丁寧かつ引き締まったトーンに整えること。
-- 話題やトピック（視察所感、各指示項目、社長講評など）が変わる段落の間には、必ず1行の空行（改行2つ）を入れてブロックごとに完全に独立させること。
+- 話題やトピックが変わる段落の間には、必ず1行の空行（改行2つ）を入れてブロックごとに完全に独立させること。
 - 箇条書きの番号付き項目（①、②、③、④、⑤、⑥など）や、「Q: / A: / 要望・指示：」の形式が存在する場合は、必ずそれぞれを縦に並ぶ独立した行として配置し、文章が詰まらないように美しく整えること。
+- さらに、すべての箇条書き番号や「Q:/A:/要望・指示：」などのラベル行の先頭には、必ず全角または半角スペース（インデント）を入れて字下げを行い、内容を細かく読まなくても文の塊や項目がパッと見で一発で発見できるようにすること。
 - 「【音声不明瞭につき確認不可】」などの不要な注記タグは一切出力しないこと。
 - ナンバーや箇条書きで番号を振る際は、漢数字（一、二、三など）は絶対に使用せず、必ず算用数字（1、2、3等）や丸数字（①、②、③等）を使用すること。
 - 時系列の順番やブロックの並び順は一切崩さないこと。
@@ -1024,7 +1022,7 @@ ${currentText}` }]
                 editor.value = proofedText;
                 showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの内容をベースに最終議事録校正（名詞化・体言止め・常体表現の徹底、段落・箇条書きの独立改行最適化、46文字幅・漢数字禁止の適用）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エディタの内容をベースに最終議事録校正（名詞化・体言止め・常体表現の徹底、インデント・視認性の最適化、46文字幅・漢数字禁止の適用）が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1052,7 +1050,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造を崩さずに修正後の全文を日本語で出力してください。トピック間や箇条書きの項目（①②③やQ:A:など）の前後には必ず1行の空行を入れ、縦方向に独立させて配置すること。AI側で勝手に途中で改行を入れず、46文字幅に達するまで1行としてつなげること。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、名詞化・体言止め・常体表現を基本とし、時系列や構造を崩さずに修正後の全文を日本語で出力してください。トピック間や箇条書きの項目（①②③やQ:A:など）の前後には必ず1行の空行を入れ、各項目の先頭にはスペース（インデント）を入れて縦方向に独立させて配置すること。AI側で勝手に途中で改行を入れず、46文字幅に達するまで1行としてつなげること。` }]
                         }]
                     })
                 });
@@ -1062,7 +1060,7 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、トピック間や箇条書きの独立改行を含めて46文字単位で再整形しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、インデントや独立改行を含めて46文字単位で再整形しました。</div>`;
                 history.scrollTop = history.scrollHeight;
             } catch (e) {
                 if (e.message !== 'AbortError') {
@@ -1146,7 +1144,7 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('ステップ4：最終校正済みのテキスト、独立改行・段落分け、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
+                alert('ステップ4：最終校正済みのテキスト、インデント・視認性最適化、および行間固定12ptを適用したWordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error("Word生成エラー詳細:", err);
                 let errMsg = err.message || JSON.stringify(err);
