@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.23）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.24）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.23</span>
+        <span class="app-version">Ver2.0.24</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -1053,7 +1053,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能（ハードリターン設定） ---
+        // --- ステップ4：Wordダウンロード機能（改行が消える原因の修正・ハードリターン対応） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1090,7 +1090,7 @@ ${currentText}` }]
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: false, // ← falseにすることでWordの「段落を変える改行（ハードリターン）」として出力
+                    linebreaks: true, // ← 改行を認識させるためtrueに戻しつつ、改行をWordのパラグラフ（ハードリターン）として扱う設定
                     paragraphProperties: {
                         spacing: {
                             line: 240,
@@ -1128,7 +1128,7 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！（ハードリターン適用）');
+                alert('Wordファイルのダウンロードが完了しました！（ハードリターン・改行反映対応）');
             } catch (err) {
                 console.error("Word生成エラー:", err);
                 alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
