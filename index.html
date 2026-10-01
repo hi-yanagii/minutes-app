@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.24）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.25）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.24</span>
+        <span class="app-version">Ver2.0.25</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -762,7 +762,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし ---
+        // --- ステップ1 & 2：音声分割・文字起こし（ハルシネーション抑制・厳格化対策適用） ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -783,7 +783,7 @@
             let termPromptSection = "";
             if (terms.length > 0) {
                 let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」という正式な専門用語に変換すること`).join('\n');
-                termPromptSection = `\n【専門用語・固有名詞の置換ルール】\n以下の製造業専門用語辞書に合致する音声のみ、最優先で指定の漢字・表記に置き換えること：\n${termListStr}\n`;
+                termPromptSection = `\n【専門用語・固有名詞の絶対置換ルール】\n以下の製造業専門用語辞書に合致する音声のみ、最優先で指定の漢字・表記に置き換えること（辞書にない用語について勝手に別の言葉に置き換えないこと）：\n${termListStr}\n`;
             }
 
             try {
@@ -833,12 +833,12 @@
                             contents: [{
                                 parts: [
                                     audioPart,
-                                    { text: `【指示】これは製造会社の会議音声のパート${partNum}です。
-【重要ルール】
-- 音声を聞き取り、聞こえた内容をそのまま忠実に文字起こししてください。
-- 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
-- 専門用語辞書の適用以外は、AI側で勝手に意味を推測して言葉を書き換えたりしないこと。
-- 聞き取りづらい部分は「【音声不明瞭・聞き取り不能】」と記載すること。
+                                    { text: `【指示】あなたは機械的な音声トランスクライバー（文字起こし専用機）です。これは製造会社の会議音声のパート${partNum}です。
+【厳格な文字起こしルール（ハルシネーション・勝手な推測の全面禁止）】
+1. 聞き取った音声の内容を、一言一句そのまま忠実に文字起こししてください。
+2. 文脈から意味を推測して言葉を勝手に補ったり、言い換えたり、要約したりすることは【絶対に禁止】です。
+3. 聞き取りづらい部分や曖昧な部分は、勝手に推測せず必ず「【音声不明瞭・聞き取り不能】」と正直に記載すること。
+4. 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
 ${termPromptSection}` }
                                 ]
                             }]
@@ -1053,7 +1053,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能（改行が消える原因の修正・ハードリターン対応） ---
+        // --- ステップ4：Wordダウンロード機能（ハードリターン対応） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1090,7 +1090,7 @@ ${currentText}` }]
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: true, // ← 改行を認識させるためtrueに戻しつつ、改行をWordのパラグラフ（ハードリターン）として扱う設定
+                    linebreaks: true,
                     paragraphProperties: {
                         spacing: {
                             line: 240,
