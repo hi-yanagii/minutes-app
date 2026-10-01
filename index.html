@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.29）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.30）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.29</span>
+        <span class="app-version">Ver2.0.30</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -962,7 +962,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 最終議事録校正（ご指定の必須条件を完全適用） ---
+        // --- 最終議事録校正 ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -1063,7 +1063,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能 ---
+        // --- ステップ4：Wordダウンロード機能（修正済み：[object Object]防止） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1100,21 +1100,14 @@ ${currentText}` }]
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: false,
-                    paragraphProperties: {
-                        spacing: {
-                            line: 240,
-                            lineRule: "exact"
-                        }
-                    },
+                    linebreaks: true, // プレビューの改行をそのままWord内に反映
                     delimiters: {
                         start: '{{',
                         end: '}}'
                     }
                 });
 
-                const paragraphsArray = content.split('\n').map(line => ({ text: line }));
-
+                // 【修正点】オブジェクト配列ではなく通常の文字列としてそのまま渡すように修正
                 doc.render({
                     会議名: meetingName,
                     会議: meetingName,
@@ -1123,8 +1116,8 @@ ${currentText}` }]
                     場所: loc,
                     参加者: parts,
                     書記: sec,
-                    本文: paragraphsArray,
-                    要約: paragraphsArray
+                    本文: content,
+                    要約: content
                 });
 
                 const out = doc.getZip().generate({
