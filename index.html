@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.27）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.28）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.27</span>
+        <span class="app-version">Ver2.0.28</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -870,7 +870,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形 ---
+        // --- ステップ3：時系列ブロック統合・整形（階層番号ルール適用） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -885,7 +885,7 @@ ${termPromptSection}` }
             }
 
             try {
-                showStatus("時系列ブロックを統合し、タイトル改行・インデントを整理中");
+                showStatus("時系列ブロックを統合し、階層番号ルールに沿って整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -893,12 +893,17 @@ ${termPromptSection}` }
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。
-【絶対厳守ルール（タイトル改行・インデント・視認性レイアウト）】
-1. 話題やトピックが変わるごとに、必ず1行の空行（改行2つ）を挟んでブロックを完全に分離して記載すること。
-2. ナンバー付き項目（①、②、③など）については、「⑥ エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟んで、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
-3. 「Q:」「A:」の形式は従来通り変更せずそのまま維持すること。
-4. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
-5. 漢数字は使用せず、算用数字や丸数字を使用すること。
+【絶対厳守ルール（階層の番号・記号ルール）】
+文章の頭につける記号や番号は、以下の階層構造（すべて数字と括弧の組み合わせ）を必ず厳守してください。
+1．大項目【議題・テーマ】
+ 1.1 中項目（具体的なトピック・議論の内容）
+  1.1.1 小項目（具体的な決定事項・アクションアイテム・詳細）
+
+【その他の必須ルール】
+1. 話題やトピックが変わるごとに、必ず1行の空行を挟んでブロックを完全に分離して記載すること。
+2. 「Q:」「A:」の形式は従来通り変更せずそのまま維持すること。
+3. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
+4. 漢数字は使用せず、算用数字を使用すること。
 
 ${currentText}` }]
                         }]
@@ -910,9 +915,9 @@ ${currentText}` }]
                 finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                showStatus("✨ 時系列ブロックの統合と整理が完了しました！");
+                showStatus("✨ 時系列ブロックの統合と階層番号の整理が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合とタイトル改行・インデント整理が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合と階層番号ルールに沿った整理が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -942,7 +947,7 @@ ${currentText}` }]
                         contents: [{
                             parts: [{ text: `以下の会議の議事録案を再構成してください。
 - 「Q」と「A」がセットになっているものだけを抽出し、文章の後半に「【質疑応答・意見交換まとめ】」として時系列順に集約すること（Q: A:の形式はそのまま維持）。
-- ナンバー付き項目はタイトル行の後に改行と全角スペース（インデント）を入れること。
+- 各項目の番号付けは「1．」「1.1」「1.1.1」の階層ルールを厳守すること。
 - 各項目の前後には必ず1行の空行を入れること。
 
 現在の議事録案:
@@ -965,7 +970,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 最終議事録校正 ---
+        // --- 最終議事録校正（階層番号ルール適用） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -989,10 +994,13 @@ ${currentText}` }]
                             parts: [{ text: `以下の議事録案に対して最終校正を行ってください。
 【必須ルール】
 - 表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
+- 【階層の番号・記号ルール】文章の頭につける記号や番号は、以下の階層構造（すべて数字と括弧の組み合わせ）を必ず厳守すること。
+  1．大項目【議題・テーマ】
+   1.1 中項目（具体的なトピック・議論の内容）
+    1.1.1 小項目（具体的な決定事項・アクションアイテム・詳細）
 - 話題が変わる段落の間には必ず1行の空行を入れること。
-- ナンバー付き項目（①、②など）は、「⑥ エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟んで、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
 - Q: A:の形式はそのまま変更せず維持すること。
-- 漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
+- 漢数字は絶対に使用せず、算用数字を使用すること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -1035,7 +1043,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、タイトル改行・インデント・46文字幅の折り返しを維持して全文を出力してください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、階層番号ルール（1．➔ 1.1 ➔ 1.1.1）・46文字幅の折り返しを維持して全文を出力してください。` }]
                         }]
                     })
                 });
@@ -1091,7 +1099,7 @@ ${currentText}` }]
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: false, // ← ソフトリターン（直線矢印）ではなくハードリターン（曲がった矢印・段落変更）として出力させるためfalseに設定
+                    linebreaks: false, // ハードリターン（曲がった矢印・段落変更）として出力
                     paragraphProperties: {
                         spacing: {
                             line: 240,
@@ -1104,7 +1112,6 @@ ${currentText}` }]
                     }
                 });
 
-                // 本文内の改行を段落の配列（ブロック単位）に分割してDocxtemplaterに渡すことで、Word側で確実にハードリターン（曲がった矢印の段落改行）としてレンダリングさせる処理
                 const paragraphsArray = content.split('\n').map(line => ({ text: line }));
 
                 doc.render({
@@ -1115,7 +1122,7 @@ ${currentText}` }]
                     場所: loc,
                     参加者: parts,
                     書記: sec,
-                    本文: paragraphsArray, // 配列として流し込む
+                    本文: paragraphsArray,
                     要約: paragraphsArray
                 });
 
@@ -1132,7 +1139,7 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！（ハードリターン・曲がった矢印対応）');
+                alert('Wordファイルのダウンロードが完了しました！（階層番号・ハードリターン対応）');
             } catch (err) {
                 console.error("Word生成エラー:", err);
                 alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
