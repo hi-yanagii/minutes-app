@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.25）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.26）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.25</span>
+        <span class="app-version">Ver2.0.26</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -111,10 +111,10 @@
             <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #dce2e6;">
                 <div class="form-row" style="margin-bottom: 8px;">
                     <div class="form-group" style="min-width: 200px;">
-                        <input type="text" id="termDisplay" placeholder="表示名（例: 吉沢）">
+                        <input type="text" id="termDisplay" placeholder="表示名（例: No.10号）">
                     </div>
                     <div class="form-group" style="min-width: 200px;">
-                        <input type="text" id="termReading" placeholder="読み・発音（例: よしざわ）">
+                        <input type="text" id="termReading" placeholder="読み・発音（例: なんばーじゅうごう）">
                     </div>
                     <div>
                         <button type="button" class="btn-success" onclick="addCustomTerm()" style="height: 38px;">用語を登録</button>
@@ -762,7 +762,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし（ハルシネーション抑制・厳格化対策適用） ---
+        // --- ステップ1 & 2：音声分割・文字起こし（型番・番号の聞き取り間違い抑制対策適用） ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -782,8 +782,8 @@
             const terms = getCustomTerms();
             let termPromptSection = "";
             if (terms.length > 0) {
-                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」という正式な専門用語に変換すること`).join('\n');
-                termPromptSection = `\n【専門用語・固有名詞の絶対置換ルール】\n以下の製造業専門用語辞書に合致する音声のみ、最優先で指定の漢字・表記に置き換えること（辞書にない用語について勝手に別の言葉に置き換えないこと）：\n${termListStr}\n`;
+                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声や、それに似た響きの部分は、必ず「${t.display}」という正式な専門用語・型番・番号に変換すること`).join('\n');
+                termPromptSection = `\n【専門用語・固有名詞・型番の絶対置換ルール】\n以下の製造業専門用語辞書に合致する音声、またはそれに類似する読み方の音声は、必ず指定の正式な表記（例: 「No.10号」など）に置き換えること。勝手に別の熟語や数字（中15など）に変換することを【絶対に禁止】します：\n${termListStr}\n`;
             }
 
             try {
@@ -834,11 +834,12 @@
                                 parts: [
                                     audioPart,
                                     { text: `【指示】あなたは機械的な音声トランスクライバー（文字起こし専用機）です。これは製造会社の会議音声のパート${partNum}です。
-【厳格な文字起こしルール（ハルシネーション・勝手な推測の全面禁止）】
+【厳格な文字起こしルール（型番・番号の聞き取り間違い防止）】
 1. 聞き取った音声の内容を、一言一句そのまま忠実に文字起こししてください。
-2. 文脈から意味を推測して言葉を勝手に補ったり、言い換えたり、要約したりすることは【絶対に禁止】です。
-3. 聞き取りづらい部分や曖昧な部分は、勝手に推測せず必ず「【音声不明瞭・聞き取り不能】」と正直に記載すること。
-4. 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
+2. 「No.～号」や製品型番、部番などの固有名詞・数字の読み間違い（例: 「なんばーじゅうごう」を「中15」や別の言葉に勝手に変換するエラー）を【絶対に起こさないこと】。音の響きが似ていても、専門用語辞書にある表現や、製造現場で使われる型番・番号として正確に文字起こしすること。
+3. 文脈から意味を推測して言葉を勝手に補ったり、言い換えたり、要約したりすることは【絶対に禁止】です。
+4. 聞き取りづらい部分や曖昧な部分は、勝手に推測せず必ず「【音声不明瞭・聞き取り不能】」と正直に記載すること。
+5. 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
 ${termPromptSection}` }
                                 ]
                             }]
