@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.33）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.34）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.33</span>
+        <span class="app-version">Ver2.0.34</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -870,7 +870,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（QA・要望・指示の文脈保持対応） ---
+        // --- ステップ3：時系列ブロック統合・整形（余分な空行を入れず、階層構造を連続させるルール強化） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -885,7 +885,7 @@ ${termPromptSection}` }
             }
 
             try {
-                showStatus("時系列ブロックを統合し、Q&Aおよび要望・指示の流れを整理中");
+                showStatus("時系列ブロックを統合し、階層と文脈を整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -893,15 +893,15 @@ ${termPromptSection}` }
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。
-【絶対厳守ルール（階層・Q&A・要望/指示の流れの固定）】
+【絶対厳守ルール（階層構造・空行の排除・Q&Aと要望/指示の文脈保持）】
 1. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
-2. 話題やトピックが変わるごとに、必ず1行の空行を挟んでブロックを完全に分離して記載すること。
+2. 階層構造（大項目「１．」、中項目「（１）」、小項目「①」）の各タイトルの間には、余分な空行を一切入れず、すぐ下に次の階層を続けること（ただし、全く異なる独立した大項目・話題の変わり目のみ1行の空行を挟む）。
 3. 文章の頭につける記号や番号は、以下の階層構造を必ず厳守すること（漢数字は絶対に使用せず、算用数字や丸数字を使用すること）。
    １．大項目【議題・テーマ】
-    （１）中項目（具体的なトピック）
-      ① 小項目（決定事項・意見）
-      ② 小項目（決定事項・意見）
-4. 会議内の「Q:」「A:」および、それに伴う「要望」や「指示」が発生する一連の流れがある場合、それらの関係性や文脈を崩さず、適切な位置にセットで分かりやすく整理して配置すること。細かすぎる内容は要約しつつも文脈の繋がりは維持すること。
+   （１）中項目（具体的なトピック）
+   ① 小項目（決定事項・意見）
+   ② 小項目（決定事項・意見）
+4. 会議内の「Q:」「A:」および、それに伴う「要望」や「指示」が発生する一連の流れがある場合、関係性を崩さず適切な位置にセットで配置すること。
 5. 文脈から意味を勝手に推測して存在しない事実を付け加えたりしないこと。
 
 ${currentText}` }]
@@ -916,7 +916,7 @@ ${currentText}` }]
                 editor.value = finalResult;
                 showStatus("✨ 時系列ブロックの統合と文脈整理が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合と、Q&A・要望/指示を含む文脈の整理が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合と階層構造の整理が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -946,7 +946,7 @@ ${currentText}` }]
                         contents: [{
                             parts: [{ text: `以下の会議の議事録案を再構成してください。
 - 「Q」「A」およびそれに続く「要望」や「指示」がセットになっている一連の流れを抽出し、文章の後半に「【質疑応答・要望事項まとめ】」として時系列順に集約すること（Q: A:の形式はそのまま維持）。
-- 各項目の前後には必ず1行の空行を入れること。
+- 各項目の間には余分な空行を入れないこと。
 
 現在の議事録案:
 ${currentText}` }]
@@ -982,7 +982,7 @@ ${currentText}` }]
             }
 
             try {
-                showStatus("ビジメ校正（階層ルール・名詞化・体言止め・Q&Aと要望/指示）による最終校正中");
+                showStatus("ビジメ校正（階層ルール・空行排除・名詞化・体言止め）による最終校正中");
 
                 const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -992,18 +992,18 @@ ${currentText}` }]
                             parts: [{ text: `以下の条件とフォーマットに従って、提供された会議データからビジネス議事録を作成（ビジメ校正）してください。
 
 ### 1. 階層の番号・記号ルール
-文章の頭につける記号や番号は、以下の階層構造を必ず厳守してください。漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
+文章の頭につける記号や番号は、以下の階層構造を必ず厳守してください。漢数字は絶対に使用せず、算用数字や丸数字を使用すること。また、階層の上下間（大項目と中項目、中項目と小項目など）には、余分な空行を一切入れないこと。
 
 １．大項目【議題・テーマ】
- （１）中項目（具体的なトピック）
-   ① 小項目（決定事項・意見）
-   ② 小項目（決定事項・意見）
- （２）中項目
+（１）中項目（具体的なトピック）
+① 小項目（決定事項・意見）
+② 小項目（決定事項・意見）
+（２）中項目
 ２．大項目
 
 ### 2. 記述の基本方針と必須ルール
 - 表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
-- 改行と段落：話題が変わる段落の間には必ず1行の空行を入れること。
+- 空行の制限：階層のタイトルの間や項目の間には余分な空白行を入れず、完全につなげて記載すること。大きく話題が変わるブロックの切れ目のみ1行の空行を挟むこと。
 - ナンバー付き項目の書き方：ナンバー付き項目（①、②など）は、「① エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟むこと。そして、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
 - Q&A・要望の扱い：テキスト内に「Q:」「A:」およびそれに伴う「要望」「指示」が含まれる場合は、流れや関係性を崩さず適切な位置にその形式を保持して配置すること。
 - トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
@@ -1022,7 +1022,7 @@ ${currentText}` }]
                 editor.value = proofedText;
                 showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（ビジメ校正・文脈保持適用）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（ビジメ校正・階層空行排除適用）が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1050,7 +1050,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、指定の階層番号ルール（１．➔（１）➔ ①）・Q&Aや要望の文脈の維持・46文字幅の折り返しを維持して全文を出力してください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、指定の階層番号ルール（１．➔（１）➔ ①）・階層間の余分な空行排除・Q&Aや要望の文脈維持・46文字幅の折り返しを維持して全文を出力してください。` }]
                         }]
                     })
                 });
@@ -1069,7 +1069,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能 ---
+        // --- ステップ4：Wordダウンロード機能（すべての改行を独立したハードリターンとして書き込むように修正） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1113,6 +1113,9 @@ ${currentText}` }]
                     }
                 });
 
+                // 各行を独立した段落オブジェクトの配列に変換し、すべての改行をハードリターン（Enter改行）として保証する
+                const paragraphsArray = content.split('\n').map(line => ({ text: line }));
+
                 doc.render({
                     会議名: meetingName,
                     会議: meetingName,
@@ -1121,8 +1124,8 @@ ${currentText}` }]
                     場所: loc,
                     参加者: parts,
                     書記: sec,
-                    本文: content,
-                    要約: content
+                    本文: paragraphsArray,
+                    要約: paragraphsArray
                 });
 
                 const out = doc.getZip().generate({
@@ -1138,7 +1141,7 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！');
+                alert('Wordファイルのダウンロードが完了しました！（ハードリターン＆空行排除対応）');
             } catch (err) {
                 console.error("Word生成エラー:", err);
                 alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
