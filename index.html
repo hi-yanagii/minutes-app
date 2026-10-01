@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.36）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.37）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.36</span>
+        <span class="app-version">Ver2.0.37</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -968,7 +968,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 最終議事録校正 ---
+        // --- 最終議事録校正（カッコつき数字の上の行に必ず1行空けるよう修正） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -977,12 +977,12 @@ ${currentText}` }]
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に校正するデータを作成してください。');
+                alert('先に校正するデータを作成してください。
                 return;
             }
 
             try {
-                showStatus("ビジメ校正（階層ルール・空行排除・名詞化・体言止め）による最終校正中");
+                showStatus("ビジメ校正（階層ルール・カッコつき数字の上の改行ルール）による最終校正中");
 
                 const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -992,18 +992,21 @@ ${currentText}` }]
                             parts: [{ text: `以下の条件とフォーマットに従って、提供された会議データからビジネス議事録を作成（ビジメ校正）してください。
 
 ### 1. 階層の番号・記号ルール
-文章の頭につける記号や番号は、以下の階層構造を必ず厳守してください。漢数字は絶対に使用せず、算用数字や丸数字を使用すること。また、階層の上下間（大項目と中項目、中項目と小項目など）には、余分な空行を一切入れないこと。
+文章の頭につける記号や番号は、以下の階層構造を必ず厳守してください。漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
+また、カッコつきの数字（例：（１）、（２）など）の上の行には、必ず「1行の空行（空白行）」を入れること。
 
 １．大項目【議題・テーマ】
+
 （１）中項目（具体的なトピック）
 ① 小項目（決定事項・意見）
 ② 小項目（決定事項・意見）
+
 （２）中項目
 ２．大項目
 
 ### 2. 記述の基本方針と必須ルール
 - 表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
-- 空行の制限：階層のタイトルの間や項目の間には余分な空白行を入れず、完全につなげて記載すること。大きく話題が変わるブロックの切れ目のみ1行の空行を挟むこと。
+- 改行と空行のルール：カッコつき数字（（１）、（２）など）の前には必ず1行の空行を挟むこと。
 - ナンバー付き項目の書き方：ナンバー付き項目（①、②など）は、「① エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟むこと。そして、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
 - Q&A・要望の扱い：テキスト内に「Q:」「A:」およびそれに伴う「要望」「指示」が含まれる場合は、流れや関係性を崩さず適切な位置にその形式を保持して配置すること。
 - トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
@@ -1022,7 +1025,7 @@ ${currentText}` }]
                 editor.value = proofedText;
                 showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（ビジメ校正・階層空行排除適用）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（カッコつき数字の上の空行追加ルール適用）が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1050,7 +1053,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、指定の階層番号ルール（１．➔（１）➔ ①）・階層間の余分な空行排除・Q&Aや要望の文脈維持・46文字幅の折り返しを維持して全文を出力してください。` }]
+                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、指定の階層番号ルール（１．➔（１）［上の行に1行空ける］➔ ①）・Q&Aや要望の文脈維持・46文字幅の折り返しを維持して全文を出力してください。` }]
                         }]
                     })
                 });
@@ -1069,7 +1072,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能（[object Object]完全防止・改行ハードリターン対応） ---
+        // --- ステップ4：Wordダウンロード機能 ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1106,14 +1109,13 @@ ${currentText}` }]
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: true, // 改行文字（\n）をハードリターン（Enter改行）としてレンダリングする設定
+                    linebreaks: true,
                     delimiters: {
                         start: '{{',
                         end: '}}'
                     }
                 });
 
-                // 配列ではなく通常の文字列として渡すことで [object Object] を完全に防ぐ
                 doc.render({
                     会議名: meetingName,
                     会議: meetingName,
