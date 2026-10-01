@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.35）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.36）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.35</span>
+        <span class="app-version">Ver2.0.36</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -1069,7 +1069,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能（修正版：[object Object]防止 & 全改行ハードリターン対応） ---
+        // --- ステップ4：Wordダウンロード機能（[object Object]完全防止・改行ハードリターン対応） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1106,16 +1106,14 @@ ${currentText}` }]
                 const zip = new ZipLib(bytes.buffer);
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
-                    linebreaks: true,
+                    linebreaks: true, // 改行文字（\n）をハードリターン（Enter改行）としてレンダリングする設定
                     delimiters: {
                         start: '{{',
                         end: '}}'
                     }
                 });
 
-                // 【修正点】テンプレート側が `{text}` タグを使用している場合に対応するため、各行をオブジェクトにして正しく渡す
-                const paragraphsArray = content.split('\n').map(line => ({ text: line }));
-
+                // 配列ではなく通常の文字列として渡すことで [object Object] を完全に防ぐ
                 doc.render({
                     会議名: meetingName,
                     会議: meetingName,
@@ -1124,8 +1122,8 @@ ${currentText}` }]
                     場所: loc,
                     参加者: parts,
                     書記: sec,
-                    本文: paragraphsArray,
-                    要約: paragraphsArray
+                    本文: content,
+                    要約: content
                 });
 
                 const out = doc.getZip().generate({
@@ -1141,7 +1139,7 @@ ${currentText}` }]
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！（ハードリターン＆空行排除対応）');
+                alert('Wordファイルのダウンロードが完了しました！');
             } catch (err) {
                 console.error("Word生成エラー:", err);
                 alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
