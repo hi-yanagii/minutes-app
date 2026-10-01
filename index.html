@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.34）</title>
+    <title>議事録くん！！（製造業会議・Ver2.0.35）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.34</span>
+        <span class="app-version">Ver2.0.35</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -870,7 +870,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（余分な空行を入れず、階層構造を連続させるルール強化） ---
+        // --- ステップ3：時系列ブロック統合・整形 ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -945,7 +945,7 @@ ${currentText}` }]
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下の会議の議事録案を再構成してください。
-- 「Q」「A」およびそれに続く「要望」や「指示」がセットになっている一連の流れを抽出し、文章の後半に「【質疑応答・要望事項まとめ】」として時系列順に集約すること（Q: A:の形式はそのまま維持）。
+- 「Q」「A」およびそれに続く「要望」や「指示」がセットになっている一連の流れを抽出し、文章の後半に【質疑応答・要望事項まとめ】として時系列順に集約すること（Q: A:の形式はそのまま維持）。
 - 各項目の間には余分な空行を入れないこと。
 
 現在の議事録案:
@@ -1069,7 +1069,7 @@ ${currentText}` }]
             }
         }
 
-        // --- ステップ4：Wordダウンロード機能（すべての改行を独立したハードリターンとして書き込むように修正） ---
+        // --- ステップ4：Wordダウンロード機能（修正版：[object Object]防止 & 全改行ハードリターン対応） ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
             if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
@@ -1113,7 +1113,7 @@ ${currentText}` }]
                     }
                 });
 
-                // 各行を独立した段落オブジェクトの配列に変換し、すべての改行をハードリターン（Enter改行）として保証する
+                // 【修正点】テンプレート側が `{text}` タグを使用している場合に対応するため、各行をオブジェクトにして正しく渡す
                 const paragraphsArray = content.split('\n').map(line => ({ text: line }));
 
                 doc.render({
