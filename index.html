@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.0.37）</title>
+    <title>議事録くん！！（製造業会議・Ver2.1.1）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -84,7 +84,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.0.37</span>
+        <span class="app-version">Ver2.1.1</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -217,7 +217,10 @@
         <h2>③ AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
             <div class="pane">
-                <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                    <label style="margin: 0;">テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
+                    <button type="button" class="btn-primary" onclick="convertSelectedTextToSolemn()" style="height: 30px; font-size: 0.8em; padding: 2px 10px;">✨ 選択範囲を厳粛な表現に変換</button>
+                </div>
                 <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
             </div>
             <div class="pane">
@@ -1026,6 +1029,52 @@ ${currentText}` }]
                 showStatus("✨ 最終議事録校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（カッコつき数字の上の空行追加ルール適用）が完了しました。</div>`;
+            } catch (e) {
+                showStatus("❌ エラー発生", true);
+                alert('エラー: ' + e.message);
+            }
+        }
+
+        // --- 選択範囲を厳粛な表現に変換する機能 ---
+        async function convertSelectedTextToSolemn() {
+            const apiKey = getApiKey();
+            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            
+            const editor = document.getElementById('summaryEditor');
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end).trim();
+
+            if (!selectedText) {
+                alert('エディター内で厳粛な表現に変えたい文章（社長の言葉など）をマウスでドラッグして選択してください。');
+                return;
+            }
+
+            try {
+                showStatus("選択された文章を厳粛なビジネス表現に変換中");
+
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `以下の文章は、製造会社の会議における社長などの発言です。この文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。書き換えた後の文字列のみを出力してください（前置きや解説は一切不要）。
+
+対象の文章:
+${selectedText}` }]
+                        }]
+                    })
+                });
+
+                if (data.error) throw new Error(data.error.message);
+                let solemnText = data.candidates[0].content.parts[0].text.trim();
+                solemnText = wrapTextByLength(solemnText, 46);
+
+                const fullText = editor.value;
+                editor.value = fullText.substring(0, start) + solemnText + fullText.substring(end);
+
+                showStatus("✨ 選択範囲の厳粛な表現への変換が完了しました！");
+                document.getElementById('statusMessage').classList.remove('loading-dots');
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
