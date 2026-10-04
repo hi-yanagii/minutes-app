@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.1.2）</title>
+    <title>議事録くん！！（製造業会議・Ver2.1.3）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -37,7 +37,7 @@
         .btn-primary { background: #007bff; }
         .btn-primary:hover { background: #0056b3; }
 
-        /* 戻す系（オレンジ・黄系） */
+        /* 戻す・進む系（オレンジ・黄系） */
         .btn-warning { background: #f0ad4e; color: #fff; }
         .btn-warning:hover { background: #ec971f; }
         
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.1.2</span>
+        <span class="app-version">Ver2.1.3</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -223,21 +223,23 @@
             <div class="pane">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                     <label style="margin: 0;">テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
-                    <div style="display: flex; gap: 5px;">
-                        <button type="button" class="btn-warning" onclick="undoEditorState()" style="height: 30px; font-size: 0.8em; padding: 2px 10px;">↩️ 変更を元に戻す</button>
-                        <button type="button" class="btn-primary" onclick="convertSelectedTextToSolemn()" style="height: 30px; font-size: 0.8em; padding: 2px 10px;">✨ 選択範囲を厳粛な表現に変換</button>
-                    </div>
+                    <button type="button" class="btn-primary" onclick="convertSelectedTextToSolemn()" style="height: 30px; font-size: 0.8em; padding: 2px 10px;">✨ 選択範囲を厳粛な表現に変換</button>
                 </div>
                 <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
             </div>
-            <div class="pane">
+            <div class="pane" style="display: flex; flex-direction: column;">
                 <label>Geminiチャット（AIと対話して修正）:</label>
                 <div id="chatHistory" class="chat-box">
                     <div class="chat-msg ai"><b>[AI]:</b> 製造会社の会議音声を読み込み、上の「1. 文字起こし実行」ボタンを押してください。または、テキストを直接貼り付けて「2. 時系列ブロック統合」から進めることも可能です。</div>
                 </div>
-                <div style="display: flex; gap: 5px; align-items: flex-end;">
+                <div style="display: flex; gap: 5px; align-items: flex-end; margin-bottom: 8px;">
                     <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
                     <button id="sendBtn" class="btn-primary" onclick="sendChatMessage()" style="height: 90px;">送信</button>
+                </div>
+                <!-- ご提示いただいた画像通りの位置（チャット入力欄の下）に縦に並ぶ「戻す」「進む」ボタン -->
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button type="button" class="btn-warning" onclick="undoEditorState()" style="width: 100%; height: 36px; font-size: 0.9em;">↩️ 戻す</button>
+                    <button type="button" class="btn-success" onclick="redoEditorState()" style="width: 100%; height: 36px; font-size: 0.9em;">🔄 進む（戻すのをキャンセル）</button>
                 </div>
             </div>
         </div>
@@ -269,25 +271,41 @@
 
     <script>
         let abortController = null;
-        let previousEditorState = ""; // 変更前のテキストを保存する変数
+        let undoStack = []; // 変更前の履歴を保持するスタック
+        let redoStack = []; // やり直し（進む）用のスタック
 
-        // AI変換・修正の直前に現在の状態を保存する関数
+        // AI変換・修正の直前に現在の状態をUndoスタックに保存する関数
         function saveEditorState() {
             const editor = document.getElementById('summaryEditor');
-            previousEditorState = editor.value;
+            undoStack.push(editor.value);
+            redoStack = []; // 新しい操作が行われたらRedoスタックはクリア
         }
 
-        // 変更を元に戻す関数
+        // 「戻す（Undo）」ボタンの処理
         function undoEditorState() {
-            if (!previousEditorState) {
+            if (undoStack.length === 0) {
                 alert('戻すことのできる直前の変更履歴がありません。');
                 return;
             }
             const editor = document.getElementById('summaryEditor');
-            const currentVal = editor.value;
-            editor.value = previousEditorState;
-            previousEditorState = currentVal; // トグルできるように現在の状態を退避
-            showStatus("↩️ 直前の状態に戻しました");
+            redoStack.push(editor.value); // 現在の状態をRedoスタックに退避
+            editor.value = undoStack.pop(); // 履歴から一つ取り出して復元
+            showStatus("↩️ 変更を元に戻しました");
+            setTimeout(() => {
+                document.getElementById('statusMessage').textContent = "";
+            }, 3000);
+        }
+
+        // 「進む（Redo / 戻すのをキャンセル）」ボタンの処理
+        function redoEditorState() {
+            if (redoStack.length === 0) {
+                alert('やり直す（進む）ことのできる履歴がありません。');
+                return;
+            }
+            const editor = document.getElementById('summaryEditor');
+            undoStack.push(editor.value); // 現在の状態をUndoスタックに退避
+            editor.value = redoStack.pop(); // Redoスタックから取り出して復元
+            showStatus("🔄 戻す操作をキャンセルしました（進みました）");
             setTimeout(() => {
                 document.getElementById('statusMessage').textContent = "";
             }, 3000);
@@ -982,7 +1000,7 @@ ${currentText}` }]
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ text: `以下の会議の議事録案を再構成してください。
-- 「Q」「A」およびそれに続く「要望」や「指示」がセットになっている一連の流れを抽出し、文章の後半に【質疑応答・要望事項まとめ】として時系列順に集約すること（Q: A:の形式はそのまま維持）。
+- 「Q」「A` + `」およびそれに続く「要望」や「指示」がセットになっている一連の流れを抽出し、文章の後半に【質疑応答・要望事項まとめ】として時系列順に集約すること（Q: A:の形式はそのまま維持）。
 - 各項目の間には余分な空行を入れないこと。
 
 現在の議事録案:
