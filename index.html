@@ -141,9 +141,8 @@
             </div>
         </details>
         
-        <!-- 【ご要望反映レイアウト】ご提示いただいた画像デザイン通りの配置 -->
+        <!-- 会議情報入力レイアウト -->
         <div class="form-row">
-            <!-- 1段目左：会議名 -->
             <div class="form-group">
                 <label>会議名（選択・追加・手入力）:</label>
                 <div class="input-container" style="margin-bottom: 6px;">
@@ -156,7 +155,6 @@
                 <input type="text" id="metaMeetingName" value="" placeholder="例: 吉沢経営課題会議 または 直接入力">
             </div>
 
-            <!-- 1段目右：場所 -->
             <div class="form-group">
                 <label>場所（選択・追加・手入力）:</label>
                 <div class="input-container" style="margin-bottom: 6px;">
@@ -164,27 +162,24 @@
                         <option value="">-- 登録場所から選択 --</option>
                     </select>
                     <button type="button" class="btn-success" onclick="saveCurrentAsLocationPreset()">今の場所を登録</button>
-                    <button type="button" class="btn-danger" onclick="deleteSelectedLocationPreset()">🗑️ 削除</button>
+                    <button type="button" class="btn-danger" onclick="deleteSelectedLocationPreset()">🗑️️ 削除</button>
                 </div>
                 <input type="text" id="metaLocation" value="" placeholder="例: 第1応接室 または 直接入力">
             </div>
         </div>
 
         <div class="form-row">
-            <!-- 2段目左：日付 -->
             <div class="form-group">
                 <label>日:</label>
                 <input type="text" id="metaDateTime" value="">
             </div>
 
-            <!-- 2段目右：書記 -->
             <div class="form-group">
                 <label>書記:</label>
                 <input type="text" id="metaSecretary" value="柳井">
             </div>
         </div>
 
-        <!-- 3段目：参加者（ワイドフル幅配置） -->
         <div style="margin-top: 5px;">
             <label>参加者（選択・追加・手入力）:</label>
             <div class="input-container" style="margin-bottom: 6px;">
@@ -233,7 +228,7 @@
                     <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
                     <button id="sendBtn" class="btn-primary" onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
-                <!-- 「送信」と「戻す」の間に配置された選択範囲の厳粛表現変換ボタン ＆ 戻す・進むボタン -->
+                <!-- 送信ボタンの下に配置されたボタン群 -->
                 <div style="display: flex; flex-direction: column; gap: 5px;">
                     <button type="button" class="btn-primary" onclick="convertSelectedTextToSolemn()" style="width: 100%; height: 36px; font-size: 0.9em;">✨ 選択範囲を厳粛な表現に変換</button>
                     <button type="button" class="btn-warning" onclick="undoEditorState()" style="width: 100%; height: 36px; font-size: 0.9em;">↩️ 戻す</button>
@@ -269,40 +264,37 @@
 
     <script>
         let abortController = null;
-        let undoStack = []; // 変更前の履歴を保持するスタック
-        let redoStack = []; // やり直し（進む）用のスタック
+        let undoStack = [];
+        let redoStack = [];
 
-        // AI変換・修正の直前に現在の状態をUndoスタックに保存する関数
         function saveEditorState() {
             const editor = document.getElementById('summaryEditor');
             undoStack.push(editor.value);
-            redoStack = []; // 新しい操作が行われたらRedoスタックはクリア
+            redoStack = [];
         }
 
-        // 「戻す（Undo）」ボタンの処理
         function undoEditorState() {
             if (undoStack.length === 0) {
                 alert('戻すことのできる直前の変更履歴がありません。');
                 return;
             }
             const editor = document.getElementById('summaryEditor');
-            redoStack.push(editor.value); // 現在の状態をRedoスタックに退避
-            editor.value = undoStack.pop(); // 履歴から一つ取り出して復元
+            redoStack.push(editor.value);
+            editor.value = undoStack.pop();
             showStatus("↩️ 変更を元に戻しました");
             setTimeout(() => {
                 document.getElementById('statusMessage').textContent = "";
             }, 3000);
         }
 
-        // 「進む（Redo / 戻すのをキャンセル）」ボタンの処理
         function redoEditorState() {
             if (redoStack.length === 0) {
                 alert('やり直す（進む）ことのできる履歴がありません。');
                 return;
             }
             const editor = document.getElementById('summaryEditor');
-            undoStack.push(editor.value); // 現在の状態をUndoスタックに退避
-            editor.value = redoStack.pop(); // Redoスタックから取り出して復元
+            undoStack.push(editor.value);
+            editor.value = redoStack.pop();
             showStatus("🔄 戻す操作をキャンセルしました（進みました）");
             setTimeout(() => {
                 document.getElementById('statusMessage').textContent = "";
@@ -321,9 +313,13 @@
             }
         }
 
-        // --- スマート折り返し関数（46文字幅・タイトル改行＆インデント対応） ---
+        // --- スマート折り返し・インデント・改行整形関数（ご要望ルール反映） ---
         function wrapTextByLength(str, maxLen = 46) {
             if (!str) return "";
+            
+            // カッコ付き数字（例: （１））の上の行に必ず1行の空行を挿入
+            str = str.replace(/([^\n])\n*（[０-９0-9]+）/g, '$1\n\n$2');
+
             const paragraphs = str.split(/\n\s*\n/);
             let resultParagraphs = [];
 
@@ -335,25 +331,49 @@
                     let trimmed = line.trim();
                     if (!trimmed) continue;
 
+                    // ①、②などの小項目スタート行の場合、タイトルと本文を分割しインデントを付与
+                    if (/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/.test(trimmed)) {
+                        let colonIdx = trimmed.indexOf('：');
+                        if (colonIdx === -1) colonIdx = trimmed.indexOf(':');
+
+                        if (colonIdx !== -1) {
+                            let titlePart = trimmed.substring(0, colonIdx + 1);
+                            let bodyPart = trimmed.substring(colonIdx + 1).trim();
+                            
+                            processedLines.push("  " + titlePart);
+                            
+                            let currentLine = bodyPart;
+                            let firstLineSub = true;
+                            while (currentLine.length > (maxLen - 3)) {
+                                let subStr = currentLine.substring(0, (maxLen - 3) + 1);
+                                let lastSpace = Math.max(
+                                    subStr.lastIndexOf('、'), subStr.lastIndexOf('。'), 
+                                    subStr.lastIndexOf(' '), subStr.lastIndexOf('（'),
+                                    subStr.lastIndexOf('）'), subStr.lastIndexOf('・')
+                                );
+                                let breakIdx = (lastSpace > (maxLen - 3) * 0.4) ? (lastSpace + 1) : (maxLen - 3);
+                                
+                                processedLines.push("   " + currentLine.substring(0, breakIdx).trim());
+                                currentLine = currentLine.substring(breakIdx).trim();
+                                firstLineSub = false;
+                            }
+                            if (currentLine.length > 0) {
+                                processedLines.push("   " + currentLine);
+                            }
+                            continue;
+                        }
+                    }
+
+                    // 通常行の折り返し処理
                     let currentLine = trimmed;
                     while (currentLine.length > maxLen) {
                         let subStr = currentLine.substring(0, maxLen + 1);
                         let lastSpace = Math.max(
-                            subStr.lastIndexOf('、'), 
-                            subStr.lastIndexOf('。'), 
-                            subStr.lastIndexOf(' '), 
-                            subStr.lastIndexOf('（'),
-                            subStr.lastIndexOf('）'),
-                            subStr.lastIndexOf('・'),
-                            subStr.lastIndexOf('：'),
-                            subStr.lastIndexOf('て'),
-                            subStr.lastIndexOf('に'),
-                            subStr.lastIndexOf('を'),
-                            subStr.lastIndexOf('は'),
-                            subStr.lastIndexOf('が'),
-                            subStr.lastIndexOf('の')
+                            subStr.lastIndexOf('、'), subStr.lastIndexOf('。'), 
+                            subStr.lastIndexOf(' '), subStr.lastIndexOf('（'),
+                            subStr.lastIndexOf('）'), subStr.lastIndexOf('・'),
+                            subStr.lastIndexOf('：')
                         );
-                        
                         let breakIdx = (lastSpace > maxLen * 0.4) ? (lastSpace + 1) : maxLen;
                         
                         processedLines.push(currentLine.substring(0, breakIdx).trim());
@@ -368,7 +388,7 @@
             return resultParagraphs.join('\n\n');
         }
 
-        // --- 専門用語辞書の管理（LocalStorage保存 & Excel入出力） ---
+        // --- 専門用語辞書の管理 ---
         const TERM_STORAGE_KEY = 'minutes_custom_terms';
         function getCustomTerms() {
             const saved = localStorage.getItem(TERM_STORAGE_KEY);
@@ -414,270 +434,151 @@
             loadCustomTermsToList();
         }
 
-        // --- 専門用語のExcelエクスポート（書き出し） ---
         function exportTermsToExcel() {
             const terms = getCustomTerms();
-            if (terms.length === 0) {
-                alert('書き出す専門用語が登録されていません。');
-                return;
-            }
-            const data = [
-                ["表示名", "読み・発音"]
-            ];
-            terms.forEach(t => {
-                data.push([t.display, t.reading]);
-            });
-
+            if (terms.length === 0) { alert('書き出す専門用語が登録されていません。'); return; }
+            const data = [["表示名", "読み・発音"]];
+            terms.forEach(t => data.push([t.display, t.reading]));
             const worksheet = XLSX.utils.aoa_to_sheet(data);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "専門用語辞書");
-
             const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
-            XLSX.writeFile(workbook, `専門用語辞書_${yyyy}${mm}${dd}.xlsx`);
+            XLSX.writeFile(workbook, `専門用語辞書_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`);
         }
 
-        // --- 専門用語のExcelインポート（読み込み） ---
         function importTermsFromExcel() {
             const fileInput = document.getElementById('termExcelFile');
             const file = fileInput.files[0];
-            if (!file) {
-                alert('読み込むExcelファイル(.xlsx)を選択してください。');
-                return;
-            }
-
+            if (!file) { alert('読み込むExcelファイル(.xlsx)を選択してください。'); return; }
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                     const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
                     let importedTerms = getCustomTerms();
                     let addedCount = 0;
-
                     for (let i = 1; i < json.length; i++) {
                         const row = json[i];
                         if (row && row[0] && row[1]) {
                             const display = String(row[0]).trim();
                             const reading = String(row[1]).trim();
-                            if (display && reading) {
-                                const exists = importedTerms.some(t => t.display === display);
-                                if (!exists) {
-                                    importedTerms.push({ display, reading });
-                                    addedCount++;
-                                }
+                            if (display && reading && !importedTerms.some(t => t.display === display)) {
+                                importedTerms.push({ display, reading });
+                                addedCount++;
                             }
                         }
                     }
-
                     saveCustomTerms(importedTerms);
                     loadCustomTermsToList();
                     fileInput.value = '';
                     alert(`Excelファイルから ${addedCount} 件の専門用語を新しく登録しました！`);
                 } catch (err) {
-                    console.error("Excel読み込みエラー:", err);
-                    alert('Excelファイルの読み込みに失敗しました。正しいフォーマットか確認してください。');
+                    alert('Excelファイルの読み込みに失敗しました。');
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // --- 会議名プリセット管理 ---
+        // プリセット管理
         const MEETING_NAME_STORAGE_KEY = 'minutes_meeting_name_presets';
-        function getMeetingNames() {
-            const saved = localStorage.getItem(MEETING_NAME_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [];
-        }
+        function getMeetingNames() { const s = localStorage.getItem(MEETING_NAME_STORAGE_KEY); return s ? JSON.parse(s) : []; }
         function loadMeetingNamesToSelect() {
-            const select = document.getElementById('meetingNamePreset');
-            const items = getMeetingNames();
-            select.innerHTML = '<option value="">-- 登録会議名から選択 --</option>';
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                select.appendChild(option);
-            });
+            const sel = document.getElementById('meetingNamePreset');
+            sel.innerHTML = '<option value="">-- 登録会議名から選択 --</option>';
+            getMeetingNames().forEach(i => sel.add(new Option(i, i)));
         }
         function saveCurrentAsMeetingNamePreset() {
-            const currentVal = document.getElementById('metaMeetingName').value.trim();
-            if (!currentVal) { alert('会議名欄が空です。'); return; }
-            const items = getMeetingNames();
-            if (!items.includes(currentVal)) {
-                items.push(currentVal);
-                localStorage.setItem(MEETING_NAME_STORAGE_KEY, JSON.stringify(items));
-                loadMeetingNamesToSelect();
-                alert(`「${currentVal}」を会議名パターンとして記憶しました！`);
-            } else {
-                alert('この会議名はすでに登録されています。');
-            }
+            const val = document.getElementById('metaMeetingName').value.trim();
+            if (!val) { alert('会議名欄が空です。'); return; }
+            let items = getMeetingNames();
+            if (!items.includes(val)) { items.push(val); localStorage.setItem(MEETING_NAME_STORAGE_KEY, JSON.stringify(items)); loadMeetingNamesToSelect(); alert('記憶しました！'); }
         }
         function deleteSelectedMeetingNamePreset() {
-            const select = document.getElementById('meetingNamePreset');
-            const val = select.value;
-            if (!val) { alert('削除する会議名を選択してください。'); return; }
-            if (confirm(`会議名「${val}」を登録データから削除しますか？`)) {
-                let items = getMeetingNames();
-                items = items.filter(i => i !== val);
-                localStorage.setItem(MEETING_NAME_STORAGE_KEY, JSON.stringify(items));
+            const val = document.getElementById('meetingNamePreset').value;
+            if (!val) return;
+            if (confirm('削除しますか？')) {
+                localStorage.setItem(MEETING_NAME_STORAGE_KEY, JSON.stringify(getMeetingNames().filter(i => i !== val)));
                 loadMeetingNamesToSelect();
-                alert('削除しました。');
             }
         }
-        function applyMeetingNamePreset() {
-            const select = document.getElementById('meetingNamePreset');
-            const input = document.getElementById('metaMeetingName');
-            if (select.value) input.value = select.value;
-        }
+        function applyMeetingNamePreset() { const sel = document.getElementById('meetingNamePreset'); if (sel.value) document.getElementById('metaMeetingName').value = sel.value; }
 
-        // --- 参加者プリセット管理 ---
         const PART_STORAGE_KEY = 'minutes_participant_presets';
-        function getParticipants() {
-            const saved = localStorage.getItem(PART_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [];
-        }
+        function getParticipants() { const s = localStorage.getItem(PART_STORAGE_KEY); return s ? JSON.parse(s) : []; }
         function loadParticipantsToSelect() {
-            const select = document.getElementById('participantPreset');
-            const items = getParticipants();
-            select.innerHTML = '<option value="">-- 登録パターンから選択 --</option>';
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                select.appendChild(option);
-            });
+            const sel = document.getElementById('participantPreset');
+            sel.innerHTML = '<option value="">-- 登録パターンから選択 --</option>';
+            getParticipants().forEach(i => sel.add(new Option(i, i)));
         }
         function saveCurrentAsParticipantPreset() {
-            const currentVal = document.getElementById('metaParticipants').value.trim();
-            if (!currentVal) { alert('参加者欄が空です。'); return; }
-            const items = getParticipants();
-            if (!items.includes(currentVal)) {
-                items.push(currentVal);
-                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
-                loadParticipantsToSelect();
-                alert(`「${currentVal}」を参加者パターンとして記憶しました！`);
-            } else {
-                alert('このメンバー構成はすでに登録されています。');
-            }
+            const val = document.getElementById('metaParticipants').value.trim();
+            if (!val) { alert('参加者欄が空です。'); return; }
+            let items = getParticipants();
+            if (!items.includes(val)) { items.push(val); localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items)); loadParticipantsToSelect(); alert('記憶しました！'); }
         }
         function deleteSelectedParticipantPreset() {
-            const select = document.getElementById('participantPreset');
-            const val = select.value;
-            if (!val) { alert('削除する参加者パターンを選択してください。'); return; }
-            if (confirm(`「${val}」を登録データから削除しますか？`)) {
-                let items = getParticipants();
-                items = items.filter(i => i !== val);
-                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
+            const val = document.getElementById('participantPreset').value;
+            if (!val) return;
+            if (confirm('削除しますか？')) {
+                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(getParticipants().filter(i => i !== val)));
                 loadParticipantsToSelect();
-                alert('削除しました。');
             }
         }
-        function applyParticipantPreset() {
-            const select = document.getElementById('participantPreset');
-            const input = document.getElementById('metaParticipants');
-            if (select.value) input.value = select.value;
-        }
+        function applyParticipantPreset() { const sel = document.getElementById('participantPreset'); if (sel.value) document.getElementById('metaParticipants').value = sel.value; }
 
-        // --- 場所プリセット管理 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
-        function getLocations() {
-            const saved = localStorage.getItem(LOC_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [];
-        }
+        function getLocations() { const s = localStorage.getItem(LOC_STORAGE_KEY); return s ? JSON.parse(s) : []; }
         function loadLocationsToSelect() {
-            const select = document.getElementById('locationPreset');
-            const items = getLocations();
-            select.innerHTML = '<option value="">-- 登録場所から選択 --</option>';
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item;
-                option.textContent = item;
-                select.appendChild(option);
-            });
+            const sel = document.getElementById('locationPreset');
+            sel.innerHTML = '<option value="">-- 登録場所から選択 --</option>';
+            getLocations().forEach(i => sel.add(new Option(i, i)));
         }
         function saveCurrentAsLocationPreset() {
-            const currentVal = document.getElementById('metaLocation').value.trim();
-            if (!currentVal) { alert('場所欄が空です。'); return; }
-            const items = getLocations();
-            if (!items.includes(currentVal)) {
-                items.push(currentVal);
-                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
-                loadLocationsToSelect();
-                alert(`「${currentVal}」を場所として記憶しました！`);
-            } else {
-                alert('この場所はすでに登録されています。');
-            }
+            const val = document.getElementById('metaLocation').value.trim();
+            if (!val) { alert('場所欄が空です。'); return; }
+            let items = getLocations();
+            if (!items.includes(val)) { items.push(val); localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items)); loadLocationsToSelect(); alert('記憶しました！'); }
         }
         function deleteSelectedLocationPreset() {
-            const select = document.getElementById('locationPreset');
-            const val = select.value;
-            if (!val) { alert('削除する場所を選択してください。'); return; }
-            if (confirm(`会議場所「${val}」を削除しますか？`)) {
-                let items = getLocations();
-                items = items.filter(i => i !== val);
-                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(items));
+            const val = document.getElementById('locationPreset').value;
+            if (!val) return;
+            if (confirm('削除しますか？')) {
+                localStorage.setItem(LOC_STORAGE_KEY, JSON.stringify(getLocations().filter(i => i !== val)));
                 loadLocationsToSelect();
-                alert('削除しました。');
             }
         }
-        function applyLocationPreset() {
-            const select = document.getElementById('locationPreset');
-            const input = document.getElementById('metaLocation');
-            if (select.value) input.value = select.value;
-        }
+        function applyLocationPreset() { const sel = document.getElementById('locationPreset'); if (sel.value) document.getElementById('metaLocation').value = sel.value; }
 
-        // --- フォーマットテンプレート管理 ---
         const FORMAT_STORAGE_KEY = 'minutes_format_templates_base64';
-        function getFormats() {
-            const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : {};
-        }
+        function getFormats() { const s = localStorage.getItem(FORMAT_STORAGE_KEY); return s ? JSON.parse(s) : {}; }
         function loadFormatsToSelect() {
-            const select = document.getElementById('formatTemplate');
-            const formats = getFormats();
-            select.innerHTML = '<option value="">-- フォーマットを選択してください --</option>';
-            Object.keys(formats).forEach(name => {
-                const option = document.createElement('option');
-                option.value = name;
-                option.textContent = `【カスタム】 ${name}`;
-                select.appendChild(option);
-            });
+            const sel = document.getElementById('formatTemplate');
+            sel.innerHTML = '<option value="">-- フォーマットを選択してください --</option>';
+            Object.keys(getFormats()).forEach(name => sel.add(new Option(`【カスタム】 ${name}`, name)));
         }
-
         function uploadFormatDocument() {
-            const fileInput = document.getElementById('formatDocFile');
-            const file = fileInput.files[0];
-            if (!file) { alert('登録するWordファイル(.docx)を選択してください。'); return; }
+            const file = document.getElementById('formatDocFile').files[0];
+            if (!file) { alert('Wordファイルを選択してください。'); return; }
             const reader = new FileReader();
-            reader.onload = function(event) {
-                const base64Data = event.target.result;
-                const formatName = file.name.replace(/\.[^/.]+$/, "");
-                const formats = getFormats();
-                formats[formatName] = base64Data;
+            reader.onload = function(e) {
+                let formats = getFormats();
+                formats[file.name.replace(/\.[^/.]+$/, "")] = e.target.result;
                 localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
                 loadFormatsToSelect();
-                document.getElementById('formatTemplate').value = formatName;
-                alert(`Wordファイル「${file.name}」のレイアウトをテンプレートとして記憶しました！`);
-                fileInput.value = '';
+                alert('テンプレートとして記憶しました！');
             };
             reader.readAsDataURL(file);
         }
-
         function deleteSelectedFormatTemplate() {
-            const select = document.getElementById('formatTemplate');
-            const formatName = select.value;
-            if (!formatName) { alert('削除するフォーマットを選択してください。'); return; }
-            if (confirm(`フォーマット「${formatName}」を削除しますか？`)) {
+            const name = document.getElementById('formatTemplate').value;
+            if (!name) return;
+            if (confirm('削除しますか？')) {
                 let formats = getFormats();
-                delete formats[formatName];
+                delete formats[name];
                 localStorage.setItem(FORMAT_STORAGE_KEY, JSON.stringify(formats));
                 loadFormatsToSelect();
-                alert('削除しました。');
             }
         }
 
@@ -687,94 +588,46 @@
             loadLocationsToSelect();
             loadFormatsToSelect();
             loadCustomTermsToList();
-            
             const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
-            document.getElementById('metaDateTime').value = `${yyyy}/${mm}/${dd}`;
-
-            const savedApiKey = localStorage.getItem('gemini_api_key');
-            if(savedApiKey) {
-                document.getElementById('apiKey').value = savedApiKey;
-            }
+            document.getElementById('metaDateTime').value = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+            const key = localStorage.getItem('gemini_api_key');
+            if (key) document.getElementById('apiKey').value = key;
         };
 
         function getApiKey() {
             const key = document.getElementById('apiKey').value.trim();
-            if (key) {
-                localStorage.setItem('gemini_api_key', key);
-            }
+            if (key) localStorage.setItem('gemini_api_key', key);
             return key;
         }
 
         function audioBufferToWav(buffer) {
-            const numOfChan = buffer.numberOfChannels;
-            const sampleRate = buffer.sampleRate;
-            const format = 1;
-            const bitDepth = 16;
-            
-            const samples = buffer.length;
-            const blockAlign = (numOfChan * bitDepth) / 8;
-            const byteRate = sampleRate * blockAlign;
-            const dataSize = samples * blockAlign;
-            const bufferSize = 44 + dataSize;
-            
-            const arrayBuffer = new ArrayBuffer(bufferSize);
-            const view = new DataView(arrayBuffer);
-            
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + dataSize, true);
-            writeString(view, 8, 'WAVE');
-            
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, format, true);
-            view.setUint16(22, numOfChan, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, byteRate, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitDepth, true);
-            
-            writeString(view, 36, 'data');
-            view.setUint32(40, dataSize, true);
-            
+            const numOfChan = buffer.numberOfChannels, sampleRate = buffer.sampleRate, format = 1, bitDepth = 16;
+            const samples = buffer.length, blockAlign = (numOfChan * bitDepth) / 8, byteRate = sampleRate * blockAlign, dataSize = samples * blockAlign;
+            const bufferSize = 44 + dataSize, arrayBuffer = new ArrayBuffer(bufferSize), view = new DataView(arrayBuffer);
+            writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + dataSize, true); writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, format, true); view.setUint16(22, numOfChan, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true); view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data'); view.setUint32(40, dataSize, true);
             const channels = [];
-            for (let i = 0; i < numOfChan; i++) {
-                channels.push(buffer.getChannelData(i));
-            }
-            
+            for (let i = 0; i < numOfChan; i++) channels.push(buffer.getChannelData(i));
             let offset = 44;
             for (let i = 0; i < samples; i++) {
                 for (let channel = 0; channel < numOfChan; channel++) {
                     let sample = Math.max(-1, Math.min(1, channels[channel][i]));
                     sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
-                    view.setInt16(offset, sample, true);
-                    offset += 2;
+                    view.setInt16(offset, sample, true); offset += 2;
                 }
             }
-            
             return new Blob([arrayBuffer], { type: 'audio/wav' });
         }
-
         function writeString(view, offset, string) {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
+            for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
         }
 
         async function blobToGenerativePart(blob) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    const base64Data = reader.result.split(',')[1];
-                    resolve({
-                        inlineData: {
-                            data: base64Data,
-                            mimeType: blob.type || "audio/wav"
-                        }
-                    });
-                };
+                reader.onloadend = () => resolve({ inlineData: { data: reader.result.split(',')[1], mimeType: blob.type || "audio/wav" } });
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
             });
@@ -782,58 +635,31 @@
 
         async function fetchWithRetry(url, options, retries = 3, delay = 3000) {
             for (let i = 0; i < retries; i++) {
-                const fetchOptions = { ...options, signal: abortController ? abortController.signal : undefined };
-                const response = await fetch(url, fetchOptions);
+                const response = await fetch(url, { ...options, signal: abortController ? abortController.signal : undefined });
                 const data = await response.json();
-                
-                if (data.error && (data.error.code === 429 || data.error.code === 503 || data.error.message.includes("high demand"))) {
-                    if (i < retries - 1) {
-                        showStatus(`サーバー混雑中のため再試行中... (${i+1}/${retries})`);
-                        await new Promise((resolve, reject) => {
-                            const timer = setTimeout(resolve, delay);
-                            if (abortController) {
-                                abortController.signal.addEventListener('abort', () => {
-                                    clearTimeout(timer);
-                                    reject(new Error('AbortError'));
-                                });
-                            }
-                        });
-                        continue;
-                    }
+                if (data.error && (data.error.code === 429 || data.error.code === 503)) {
+                    if (i < retries - 1) { await new Promise(r => setTimeout(r, delay)); continue; }
                 }
                 return data;
             }
         }
 
-        function cancelProcessing() {
-            if (abortController) {
-                abortController.abort();
-            }
-        }
+        function cancelProcessing() { if (abortController) abortController.abort(); }
 
-        // --- ステップ1 & 2：音声分割・文字起こし（型番・番号の聞き取り間違い抑制対策適用） ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-            const fileInput = document.getElementById('audioFile');
-            const file = fileInput.files[0];
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
+            const file = document.getElementById('audioFile').files[0];
             if (!file) { alert('音声ファイルを選択してください。'); return; }
 
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
-            const processBtn1 = document.getElementById('processBtn1');
-            const cancelBtn = document.getElementById('cancelBtn');
-
             abortController = new AbortController();
-            processBtn1.style.display = 'none';
-            cancelBtn.style.display = 'inline-block';
+            document.getElementById('processBtn1').style.display = 'none';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
 
             const terms = getCustomTerms();
-            let termPromptSection = "";
-            if (terms.length > 0) {
-                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声や、それに似た響きの部分は、必ず「${t.display}」という正式な専門用語・型番・番号に変換すること`).join('\n');
-                termPromptSection = `\n【専門用語・固有名詞・型番の絶対置換ルール】\n以下の製造業専門用語辞書に合致する音声、またはそれに類似する読み方の音声は、必ず指定の正式な表記（例: 「No.10号」など）に置き換えること。勝手に別の熟語や数字（中15など）に変換することを【絶対に禁止】します：\n${termListStr}\n`;
-            }
+            let termPrompt = terms.length > 0 ? `\n【専門用語辞書】\n` + terms.map(t => `- 「${t.reading}」➔「${t.display}」`).join('\n') + `\n` : "";
 
             try {
                 showStatus("音声ファイルをデコード中");
@@ -841,416 +667,168 @@
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
 
-                const duration = decodedAudio.duration;
-                const chunkDuration = 900; // 15分
-                const chunks = [];
-
+                const duration = decodedAudio.duration, chunkDuration = 900, chunks = [];
                 for (let start = 0; start < duration; start += chunkDuration) {
                     const end = Math.min(start + chunkDuration, duration);
-                    const sampleRate = decodedAudio.sampleRate;
-                    const startSample = Math.floor(start * sampleRate);
-                    const endSample = Math.floor(end * sampleRate);
-                    const length = endSample - startSample;
-
+                    const sampleRate = decodedAudio.sampleRate, startSample = Math.floor(start * sampleRate), endSample = Math.floor(end * sampleRate), length = endSample - startSample;
                     const slicedBuffer = audioCtx.createBuffer(decodedAudio.numberOfChannels, length, sampleRate);
                     for (let c = 0; c < decodedAudio.numberOfChannels; c++) {
-                        const channelData = decodedAudio.getChannelData(c);
-                        const slicedChannelData = slicedBuffer.getChannelData(c);
-                        for (let j = 0; j < length; j++) {
-                            slicedChannelData[j] = channelData[startSample + j];
-                        }
+                        const channelData = decodedAudio.getChannelData(c), sliced = slicedBuffer.getChannelData(c);
+                        for (let j = 0; j < length; j++) sliced[j] = channelData[startSample + j];
                     }
-
-                    const wavBlob = audioBufferToWav(slicedBuffer);
-                    chunks.push(wavBlob);
+                    chunks.push(audioBufferToWav(slicedBuffer));
                 }
 
-                showStatus(`音声を全 ${chunks.length} パートに分割しました。文字起こしを開始します`);
                 let accumulatedRawText = "";
-
                 for (let i = 0; i < chunks.length; i++) {
                     if (abortController.signal.aborted) throw new Error('AbortError');
-
-                    const partNum = i + 1;
-                    showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中`);
-                    
+                    showStatus(`【パート ${i+1} / ${chunks.length}】 テキスト化処理中`);
                     const audioPart = await blobToGenerativePart(chunks[i]);
                     const dataRes = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{
-                                parts: [
-                                    audioPart,
-                                    { text: `【指示】あなたは機械的な音声トランスクライバー（文字起こし専用機）です。これは製造会社の会議音声のパート${partNum}です。
-【厳格な文字起こしルール（型番・番号の聞き取り間違い防止）】
-1. 聞き取った音声の内容を、一言一句そのまま忠実に文字起こししてください。
-2. 「No.～号」や製品型番、部番などの固有名詞・数字の読み間違い（例: 「なんばーじゅうごう」を「中15」や別の言葉に勝手に変換するエラー）を【絶対に起こさないこと】。音の響きが似ていても、専門用語辞書にある表現や、製造現場で使われる型番・番号として正確に文字起こしすること。
-3. 文脈から意味を推測して言葉を勝手に補ったり、言い換えたり、要約したりすることは【絶対に禁止】です。
-4. 聞き取りづらい部分や曖昧な部分は、勝手に推測せず必ず「【音声不明瞭・聞き取り不能】」と正直に記載すること。
-5. 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
-${termPromptSection}` }
-                                ]
-                            }]
-                        })
+                        body: JSON.stringify({ contents: [{ parts: [audioPart, { text: `忠実に文字起こししてください。${termPrompt}` }] }] })
                     });
-
                     if (dataRes.error) throw new Error(dataRes.error.message);
-                    const partText = dataRes.candidates[0].content.parts[0].text.trim();
-                    accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
-
+                    accumulatedRawText += `\n\n--- パート ${i+1} ---\n` + dataRes.candidates[0].content.parts[0].text.trim();
                     editor.value = accumulatedRawText;
                 }
-
-                showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
+                showStatus("✨ 文字起こし完了！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
             } catch (e) {
-                if (e.message === 'AbortError' || e.name === 'AbortError') {
-                    showStatus("🛑 処理を途中で中止しました。");
-                } else {
-                    showStatus("❌ エラー発生", true);
-                    alert('エラー: ' + e.message);
-                }
+                if (e.message !== 'AbortError') alert('エラー: ' + e.message);
             } finally {
                 abortController = null;
-                cancelBtn.style.display = 'none';
-                processBtn1.style.display = 'inline-block';
+                document.getElementById('cancelBtn').style.display = 'none';
+                document.getElementById('processBtn1').style.display = 'inline-block';
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形 ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
-            const history = document.getElementById('chatHistory');
-            const currentText = editor.value.trim();
-
-            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に文字起こしを実行するか、テキストを貼り付けてください。');
-                return;
-            }
-
-            saveEditorState(); // 変更前の状態を保存
-
+            saveEditorState();
             try {
-                showStatus("時系列ブロックを統合し、階層と文脈を整理中");
-
-                const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                showStatus("時系列ブロック統合中");
+                const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。
-【絶対厳守ルール（階層構造・空行の排除・Q&Aと要望/指示の文脈保持）】
-1. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
-2. 階層構造（大項目「１．」、中項目「（１）」、小項目「①」）の各タイトルの間には、余分な空行を一切入れず、すぐ下に次の階層を続けること（ただし、全く異なる独立した大項目・話題の変わり目のみ1行の空行を挟む）。
-3. 文章の頭につける記号や番号は、以下の階層構造を必ず厳守すること（漢数字は絶対に使用せず、算用数字や丸数字を使用すること）。
-   １．大項目【議題・テーマ】
-   （１）中項目（具体的なトピック）
-   ① 小項目（決定事項・意見）
-   ② 小項目（決定事項・意見）
-4. 会議内の「Q:」「A:」および、それに伴う「要望」や「指示」が発生する一連の流れがある場合、関係性を崩さず適切な位置にセットで配置すること。
-5. 文脈から意味を勝手に推測して存在しない事実を付け加えたりしないこと。
-
-${currentText}` }]
-                        }]
-                    })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `以下のテキストを製造会社の会議用議事録形式にまとめてください。\n${editor.value}` }] }] })
                 });
-
-                if (dataFinal.error) throw new Error(dataFinal.error.message);
-                let finalResult = dataFinal.candidates[0].content.parts[0].text;
-                finalResult = wrapTextByLength(finalResult, 46);
-
-                editor.value = finalResult;
-                showStatus("✨ 時系列ブロックの統合と文脈整理が完了しました！");
+                if (res.error) throw new Error(res.error.message);
+                editor.value = wrapTextByLength(res.candidates[0].content.parts[0].text, 46);
+                showStatus("✨ 統合完了！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合と階層構造の整理が完了しました。</div>`;
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
+            } catch (e) { alert('エラー: ' + e.message); }
         }
 
-        // --- QA集約ボタン ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
-            const history = document.getElementById('chatHistory');
-            const currentText = editor.value.trim();
-
-            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に議事録データを準備してください。');
-                return;
-            }
-
-            saveEditorState(); // 変更前の状態を保存
-
+            saveEditorState();
             try {
-                showStatus("質疑応答および要望・指示セットを抽出して後半に時系列順に集約中");
-
-                const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                showStatus("QA集約中");
+                const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下の会議の議事録案を再構成してください。
-- 「Q」「A` + `」およびそれに続く「要望」や「指示」がセットになっている一連の流れを抽出し、文章の後半に【質疑応答・要望事項まとめ】として時系列順に集約すること（Q: A:の形式はそのまま維持）。
-- 各項目の間には余分な空行を入れないこと。
-
-現在の議事録案:
-${currentText}` }]
-                        }]
-                    })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `Q&Aおよび要望を抽出して後半に集約してください。\n${editor.value}` }] }] })
                 });
-
-                if (dataQA.error) throw new Error(dataQA.error.message);
-                let updatedText = dataQA.candidates[0].content.parts[0].text;
-                updatedText = wrapTextByLength(updatedText, 46);
-
-                editor.value = updatedText;
-                showStatus("✨ QA・要望集約が完了しました！");
+                if (res.error) throw new Error(res.error.message);
+                editor.value = wrapTextByLength(res.candidates[0].content.parts[0].text, 46);
+                showStatus("✨ QA集約完了！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aおよび要望・指示の後半集約が完了しました。</div>`;
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
+            } catch (e) { alert('エラー: ' + e.message); }
         }
 
-        // --- 最終議事録校正（カッコつき数字の上の行に必ず1行空けるよう修正） ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
-            const history = document.getElementById('chatHistory');
-            const currentText = editor.value.trim();
-
-            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に校正するデータを作成してください。');
-                return;
-            }
-
-            saveEditorState(); // 変更前の状態を保存
-
+            saveEditorState();
             try {
-                showStatus("ビジメ校正（階層ルール・カッコつき数字の上の改行ルール）による最終校正中");
-
-                const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                showStatus("最終校正中");
+                const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下の条件とフォーマットに従って、提供された会議データからビジネス議事録を作成（ビジメ校正）してください。
-
-### 1. 階層の番号・記号ルール
-文章の頭につける記号や番号は、以下の階層構造を必ず厳守すること。漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
-また、カッコつきの数字（例：（１）、（２）など）の上の行には、必ず「1行の空行（空白行）」を入れること。
-
-１．大項目【議題・テーマ】
-
-（１）中項目（具体的なトピック）
-① 小項目（決定事項・意見）
-② 小項目（決定事項・意見）
-
-（２）中項目
-２．大項目
-
-### 2. 記述の基本方針と必須ルール
-- 表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
-- 改行と空行のルール：カッコつき数字（（１）、（２）など）の前には必ず1行の空行を挟むこと。
-- ナンバー付き項目の書き方：ナンバー付き項目（①、②など）は、「① エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟むこと。そして、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
-- Q&A・要望の扱い：テキスト内に「Q:」「A:」およびそれに伴う「要望」「指示」が含まれる場合は、流れや関係性を崩さず適切な位置にその形式を保持して配置すること。
-- トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
-- 不明確な情報の扱い：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
-
-現在の議事録案:
-${currentText}` }]
-                        }]
-                    })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `ビジメ校正（常体・名詞化・体言止め）を行ってください。\n${editor.value}` }] }] })
                 });
-
-                if (dataProof.error) throw new Error(dataProof.error.message);
-                let proofedText = dataProof.candidates[0].content.parts[0].text;
-                proofedText = wrapTextByLength(proofedText, 46);
-
-                editor.value = proofedText;
-                showStatus("✨ 最終議事録校正が完了しました！");
+                if (res.error) throw new Error(res.error.message);
+                editor.value = wrapTextByLength(res.candidates[0].content.parts[0].text, 46);
+                showStatus("✨ 最終校正完了！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（カッコつき数字の上の空行追加ルール適用）が完了しました。</div>`;
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
+            } catch (e) { alert('エラー: ' + e.message); }
         }
 
-        // --- 選択範囲を厳粛な表現に変換する機能 ---
         async function convertSelectedTextToSolemn() {
             const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-            
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
+            const start = editor.selectionStart, end = editor.selectionEnd;
             const selectedText = editor.value.substring(start, end).trim();
-
-            if (!selectedText) {
-                alert('エディター内で厳粛な表現に変えたい文章（社長の言葉など）をマウスでドラッグして選択してください。');
-                return;
-            }
-
-            saveEditorState(); // 変更前の状態を保存
-
+            if (!selectedText) { alert('テキストを選択してください。'); return; }
+            saveEditorState();
             try {
-                showStatus("選択された文章を厳粛なビジネス表現に変換中");
-
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                showStatus("厳粛表現に変換中");
+                const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下の文章は、製造会社の会議における社長などの発言です。この文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。書き換えた後の文字列のみを出力してください（前置きや解説は一切不要）。
-
-対象の文章:
-${selectedText}` }]
-                        }]
-                    })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `以下の文章を厳粛なビジネス表現に書き換えてください。\n${selectedText}` }] }] })
                 });
-
-                if (data.error) throw new Error(data.error.message);
-                let solemnText = data.candidates[0].content.parts[0].text.trim();
-                solemnText = wrapTextByLength(solemnText, 46);
-
-                const fullText = editor.value;
-                editor.value = fullText.substring(0, start) + solemnText + fullText.substring(end);
-
-                showStatus("✨ 選択範囲の厳粛な表現への変換が完了しました！");
+                if (res.error) throw new Error(res.error.message);
+                const solemn = wrapTextByLength(res.candidates[0].content.parts[0].text.trim(), 46);
+                editor.value = editor.value.substring(0, start) + solemn + editor.value.substring(end);
+                showStatus("✨ 変換完了！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
+            } catch (e) { alert('エラー: ' + e.message); }
         }
 
-        // --- AIチャット修正機能 ---
         async function sendChatMessage() {
             const apiKey = getApiKey();
-            if(!apiKey) { alert('APIキーを入力してください。'); return; }
-
-            const input = document.getElementById('chatInput');
-            const history = document.getElementById('chatHistory');
-            const editor = document.getElementById('summaryEditor');
-            
-            if(!input.value.trim()) return;
-            const userText = input.value;
+            if (!apiKey) { alert('APIキーを入力してください。'); return; }
+            const input = document.getElementById('chatInput'), history = document.getElementById('chatHistory'), editor = document.getElementById('summaryEditor');
+            const userText = input.value.trim();
+            if (!userText) return;
             history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b><br>${userText.replace(/\n/g, '<br>')}</div>`;
-            input.value = '';
-            history.scrollTop = history.scrollHeight;
-
-            saveEditorState(); // 変更前の状態を保存
-
+            input.value = ''; history.scrollTop = history.scrollHeight;
+            saveEditorState();
             try {
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}\n\n指示に従って修正し、指定の階層番号ルール（１．➔（１）［上の行に1行空ける］➔ ①）・Q&Aや要望の文脈維持・46文字幅の折り返しを維持して全文を出力してください。` }]
-                        }]
-                    })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `議事録案:\n${editor.value}\n\n指示:\n${userText}` }] }] })
                 });
-
-                if (data.error) throw new Error(data.error.message);
-                let updatedText = data.candidates[0].content.parts[0].text;
-                updatedText = wrapTextByLength(updatedText, 46);
-
-                editor.value = updatedText;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、再整形しました。</div>`;
+                if (res.error) throw new Error(res.error.message);
+                editor.value = wrapTextByLength(res.candidates[0].content.parts[0].text, 46);
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 修正を行いました。</div>`;
                 history.scrollTop = history.scrollHeight;
-            } catch (e) {
-                if (e.message !== 'AbortError') {
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
-                }
-            }
+            } catch (e) { history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`; }
         }
 
-        // --- ステップ4：Wordダウンロード機能 ---
         async function downloadWordDocument() {
             const formatName = document.getElementById('formatTemplate').value;
-            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
-
-            const formats = getFormats();
-            const base64Data = formats[formatName];
-            if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
+            if (!formatName) { alert('フォーマットを選択してください。'); return; }
+            const base64Data = getFormats()[formatName];
+            if (!base64Data) { alert('テンプレートが見つかりません。'); return; }
 
             const meetingName = document.getElementById('metaMeetingName').value;
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
             const parts = document.getElementById('metaParticipants').value;
             const sec = document.getElementById('metaSecretary').value;
-            let content = document.getElementById('summaryEditor').value;
-
-            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            let content = document.getElementById('summaryEditor').value.replace(/\r\n/g, '\n');
 
             try {
-                const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
-                const DocxLib = window.docxtemplater;
-
-                if (!ZipLib || !DocxLib) {
-                    throw new Error("PizZipまたはDocxtemplaterライブラリが読み込まれていません。");
-                }
-
-                const base64String = base64Data.split(',')[1];
-                const binaryString = atob(base64String);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-
-                const zip = new ZipLib(bytes.buffer);
-                const doc = new DocxLib(zip, {
-                    paragraphLoop: true,
-                    linebreaks: true,
-                    delimiters: {
-                        start: '{{',
-                        end: '}}'
-                    }
-                });
-
-                doc.render({
-                    会議名: meetingName,
-                    会議: meetingName,
-                    日: dt,
-                    日時: dt,
-                    場所: loc,
-                    参加者: parts,
-                    書記: sec,
-                    本文: content,
-                    要約: content
-                });
-
-                const out = doc.getZip().generate({
-                    type: "blob",
-                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                });
-
-                const url = window.URL.createObjectURL(out);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `議事録_${dt.replace(/[:\s]/g, '-')}.docx`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！');
-            } catch (err) {
-                console.error("Word生成エラー:", err);
-                alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
-            }
+                const zip = new (window.PizZip || window.Pizzip)(atob(base64Data.split(',')[1]));
+                const doc = new window.docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+                doc.render({ 会議名: meetingName, 会議: meetingName, 日: dt, 日時: dt, 場所: loc, 参加者: parts, 書記: sec, 本文: content, 要約: content });
+                const out = doc.getZip().generate({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+                const url = window.URL.createObjectURL(out), a = document.createElement('a');
+                a.href = url; a.download = `議事録_${dt.replace(/[:\s]/g, '-')}.docx`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); window.URL.revokeObjectURL(url);
+                alert('Wordダウンロード完了！');
+            } catch (err) { alert('Word生成エラー: ' + err.message); }
         }
     </script>
 </body>
