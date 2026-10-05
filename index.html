@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.1.5）</title>
+    <title>議事録くん！！（製造業会議・Ver2.1.6）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.1.5</span>
+        <span class="app-version">Ver2.1.6</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -151,7 +151,7 @@
                         <option value="">-- 登録会議名から選択 --</option>
                     </select>
                     <button type="button" class="btn-success" onclick="saveCurrentAsMeetingNamePreset()">今の会議名を登録</button>
-                    <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️ 削除</button>
+                    <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️️ 削除</button>
                 </div>
                 <input type="text" id="metaMeetingName" value="" placeholder="例: 吉沢経営課題会議 または 直接入力">
             </div>
@@ -211,7 +211,7 @@
             <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">🚀 1. 文字起こし実行</button>
             <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
             <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
-            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA集約（後半まとめ）</button>
+            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA・要望を話題ごとに紐づけ</button>
             <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4・最終議事録校正</button>
         </div>
     </section>
@@ -975,7 +975,7 @@ ${currentText}` }]
             }
         }
 
-        // --- QA集約ボタン（ハルシネーション・設定混入抑制版） ---
+        // --- 3. QA・要望を話題ごとに紐づけするボタン（話題別集約版） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -991,7 +991,7 @@ ${currentText}` }]
             saveEditorState(); // 変更前の状態を保存
 
             try {
-                showStatus("質疑応答および要望・指示セットを抽出して後半に時系列順に集約中");
+                showStatus("質疑応答および要望・指示を、対応する各議題・話題の直下に紐づけて整理中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -1000,11 +1000,12 @@ ${currentText}` }]
                         contents: [{
                             parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の会議の議事録案を再構成してください。
 
-【絶対厳守ルール】
-1. テキスト内にある「Q:」「A:」およびそれに伴う「要望」や「指示」がセットになっている一連の流れをすべて正確に抽出し、文章の後半に必ず【３．質疑応答・要望事項まとめ】という大項目を新規作成して、そこに時系列順に集約すること（Q: A:の形式はそのまま維持すること）。
-2. 前半の通常の議題・トピック部分と、後半の質疑応答まとめ部分を明確に分離し、Q&Aが前半に混ざらないようにすること。
-3. 余分な解説、挨拶、前置き、システム設定の言葉などは一切出力せず、純粋な議事録テキストの文字列のみを出力すること。
-4. 46文字幅の折り返しを維持すること。
+【絶対厳守ルール（話題ごとのQ&A紐づけ）】
+1. テキスト内にある「Q:」「A:」およびそれに伴う「要望」や「指示」を、全体を一つの末尾にまとめるのではなく、それぞれ【対応する大項目・中項目・小項目（それぞれの議題・話題）の直下】に時系列順に配置・紐づけてください。
+2. 「大項目１、中項目１、小項目１」の話題に関するQ&Aは、その小項目やトピックのすぐ下に「Q1」「A1」として配置し、次の話題「大項目２」に関するQ&Aはその直下に「Q2」「A2」として配置するように、各話題ごとに分散・紐づけること。
+3. 「大項目」「中項目」「小項目」という文字ラベル自体は絶対に本文に出力せず、実際の会議の議題名・トピック名に置き換えること。
+4. 余分な解説、挨拶、前置き、システム設定の言葉などは一切出力せず、純粋な議事録テキストの文字列のみを出力すること。
+5. 46文字幅の折り返しを維持すること。
 
 現在の議事録案:
 ${currentText}` }]
@@ -1017,9 +1018,9 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                showStatus("✨ QA・要望集約が完了しました！");
+                showStatus("✨ QA・要望の話題別紐づけが完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aおよび要望・指示の後半集約が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aおよび要望・指示の話題別紐づけ整理が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1068,7 +1069,7 @@ ${currentText}` }]
 - 表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
 - 改行と空行のルール：カッコつき数字（（１）、（２）など）の前には必ず1行の空行を挟むこと。
 - ナンバー付き項目の書き方：ナンバー付き項目（①、②など）は、「① エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟むこと。そして、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
-- Q&A・要望の扱い：テキスト内に「Q:」「A:」およびそれに伴う「要望」「指示」が含まれる場合は、流れや関係性を崩さず適切な位置にその形式を保持して配置すること。
+- Q&A・要望の扱い：テキスト内に「Q:」「A:」およびそれに伴う「要望」「指示」が含まれる場合は、それぞれの話題・議題（大・中・小項目）の直下に適切な位置で紐づけて配置すること。
 - トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
 - 不明確な情報の扱い：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
 - 出力制御：挨拶、前置き、解説などは一切含めず、純粋な議事録テキストの文字列のみを出力すること。
