@@ -211,8 +211,8 @@
             <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">🚀 1. 文字起こし実行</button>
             <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
             <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
-            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA・要望を話題ごとに紐づけ</button>
-            <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4・最終議事録校正</button>
+            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA・要望紐づけ</button>
+            <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4. 最終議事録校正</button>
         </div>
     </section>
 
@@ -919,7 +919,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（ご指定のプロンプト仕様に更新） ---
+        // --- ステップ3：時系列ブロック統合・整形 ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -976,7 +976,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 3. QA・要望を話題ごとに紐づけするボタン（話題別集約版） ---
+        // --- 3. QA・要望紐づけ＆最終校正（4セクション構成） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -992,21 +992,43 @@ ${currentText}` }]
             saveEditorState(); // 変更前の状態を保存
 
             try {
-                showStatus("質疑応答および要望・指示を、対応する各議題・話題の直下に紐づけて整理中");
+                showStatus("会議データを分析し、4セクション構成への再構築とビジメ最終校正中");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の会議の議事録案を再構成してください。
+                            parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の会議の議事録案を読み込み、必ず以下の【指定の4セクション構成】のマークダウン形式で再構成しつつ、ビジネス文書としての最終校正（ビジメ校正）を行ってください。
 
-【絶対厳守ルール（話題ごとのQ&A紐づけ）】
-1. テキスト内にある「Q:」「A:」およびそれに伴う「要望」や「指示」を、全体を一つの末尾にまとめるのではなく、それぞれ【対応する大項目・中項目・小項目（それぞれの議題・話題）の直下】に時系列順に配置・紐づけてください。
-2. 「大項目１、中項目１、小項目１」の話題に関するQ&Aは、その小項目やトピックのすぐ下に「Q1」「A1」として配置し、次の話題「大項目２」に関するQ&Aはその直下に「Q2」「A2」として配置するように、各話題ごとに分散・紐づけること。
-3. 「大項目」「中項目」「小項目」という文字ラベル自体は絶対に本文に出力せず、実際の会議の議題名・トピック名に置き換えること。
-4. 余分な解説、挨拶、前置き、システム設定の言葉などは一切出力せず、純粋な議事録テキストの文字列のみを出力すること。
-5. 46文字幅の折り返しを維持すること。
+【絶対厳守ルール（4セクション構成 & ビジメ校正）】
+1. 出力は必ず以下の4つのセクションで構成し、それぞれのタイトルと番号（## 1. 議事要約、## 2. 主なQA、## 3. 要望事項、## 4. 指示事項・ネクストアクション）を正確に出力すること。
+2. 各セクションの間には「---」の区切り線を挟むこと。
+3. 表現形式は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
+4. 礼式やビジネス文書としての正確なトーンを意識した厳粛なトーンで記述すること。
+5. 情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
+6. 余分な解説、挨拶、前置き、システム設定の言葉などは一切出力せず、純粋な議事録テキストの文字列のみを出力すること。
+7. 46文字幅の折り返しを維持すること。
+
+【指定の構成フォーマット】
+## 1. 議事要約
+- (要点を名詞化・体言止め・常体表現の箇条書きで記述)
+
+---
+
+## 2. 主なQA
+- **Q: (質問内容)**
+  * **A:** (回答内容)
+
+---
+
+## 3. 要望事項
+- (要望内容を記載)
+
+---
+
+## 4. 指示事項・ネクストアクション
+- (指示事項やネクストアクションを記述。担当者や期限があれば含める)
 
 現在の議事録案:
 ${currentText}` }]
@@ -1019,16 +1041,16 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                showStatus("✨ QA・要望の話題別紐づけが完了しました！");
+                showStatus("✨ 4セクション構成への整理と最終ビジメ校正が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aおよび要望・指示の話題別紐づけ整理が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 4セクション構成への再構築およびビジメ最終校正が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- 最終議事録校正（Q&A・要望の消失防止ルール適用） ---
+        // --- 最終議事録校正 ---
         async function runFinalProofreading() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -1143,7 +1165,7 @@ ${selectedText}` }]
             }
         }
 
-        // --- AIチャット修正機能（余分なアンサー・システム文言の混入防止強化） ---
+        // --- AIチャット修正機能 ---
         async function sendChatMessage() {
             const apiKey = getApiKey();
             if(!apiKey) { alert('APIキーを入力してください。'); return; }
@@ -1168,9 +1190,9 @@ ${selectedText}` }]
                         contents: [{
                             parts: [{ text: `あなたは議事録整形AIです。以下の現在の議事録案に対して、ユーザーからの修正指示を反映した【修正後の議事録の全文】のみを出力してください。
 【絶対厳守ルール】
-- 「承知いたしました」「以下のように修正しました」などの前置き、挨拶、会話的な返答は一切出力しないこと。
+- 「承知いたしました」「以下のように修正しました」などの前置き、挨拶、会話的な返答は一切出力すること。
 - 純粋に修正された議事録テキストの文字列のみを出力すること。
-- 指定の階層番号ルール（「大項目」「中項目」「小項目」等の文字は絶対に出力せず実際の議題名にする）、Q&Aや要望の文脈維持、46文字幅の折り返しを維持すること。
+- 46文字幅の折り返しを維持すること。
 
 現在の議事録案:
 ${editor.value}
