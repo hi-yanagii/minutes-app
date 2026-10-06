@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.1.6）</title>
+    <title>議事録くん！！（製造業会議・Ver2.1.7）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.1.6</span>
+        <span class="app-version">Ver2.1.7</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -151,7 +151,7 @@
                         <option value="">-- 登録会議名から選択 --</option>
                     </select>
                     <button type="button" class="btn-success" onclick="saveCurrentAsMeetingNamePreset()">今の会議名を登録</button>
-                    <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️️ 削除</button>
+                    <button type="button" class="btn-danger" onclick="deleteSelectedMeetingNamePreset()">🗑️ 削除</button>
                 </div>
                 <input type="text" id="metaMeetingName" value="" placeholder="例: 吉沢経営課題会議 または 直接入力">
             </div>
@@ -288,7 +288,7 @@
             const editor = document.getElementById('summaryEditor');
             redoStack.push(editor.value); // 現在の状態をRedoスタックに退避
             editor.value = undoStack.pop(); // 履歴から一つ取り出して復元
-            showStatus("↩️ 変更を元に戻しました");
+            showStatus("↩️️ 変更を元に戻しました");
             setTimeout(() => {
                 document.getElementById('statusMessage').textContent = "";
             }, 3000);
@@ -919,7 +919,7 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（「大項目」「中項目」等のラベル出力禁止） ---
+        // --- ステップ3：時系列ブロック統合・整形（「大項目」「中項目」等のラベル出力禁止・Q&A連動ルール追加） ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -936,7 +936,7 @@ ${termPromptSection}` }
             saveEditorState(); // 変更前の状態を保存
 
             try {
-                showStatus("時系列ブロックを統合し、階層と文脈を整理中");
+                showStatus("時系列ブロックを統合し、Q&Aや要望の関係性を維持しながら文脈を整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -954,7 +954,8 @@ ${termPromptSection}` }
    - ① [実際の決定事項や意見]
 4. 各項目の末尾に余計なコロン「：」などを勝手につけないこと。また項目名や見出し部分に不要な「①」などの記号を勝手に振らないこと。
 5. 各タイトルの間には余分な空行を一切入れず、すぐ下に次の階層を続けること（ただし、独立した大項目の変わり目のみ1行の空行を挟む）。
-6. 挨拶、前置き、解説、システム設定の言葉などは一切出力せず、純粋な議事録の文字列のみを出力すること。
+6. 会議内の「Q:」「A:」および、それに伴う「要望」や「指示」が発生する一連の流れがある場合、関係性を崩さず適切な位置にセットで配置すること。
+7. 挨拶、前置き、解説、システム設定の言葉などは一切出力せず、純粋な議事録の文字列のみを出力すること。
 
 ${currentText}` }]
                         }]
