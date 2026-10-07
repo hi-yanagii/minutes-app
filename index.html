@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver2.1.10）</title>
+    <title>議事録くん！！（製造業会議・Ver3.0.0）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver2.1.10</span>
+        <span class="app-version">Ver3.0.0</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -201,7 +201,7 @@
     <!-- 処理コントロールエリア -->
     <section style="background: #f4fbf5; border: 1px dashed #28a745;">
         <div class="section-header" style="border-bottom-color: #28a745;">
-            <h2>② 処理コントロール（ステップ進行・QA集約・最終校正）</h2>
+            <h2>② 処理コントロール（ステップ進行・最終議事録作成）</h2>
             <div id="statusMessage"></div>
         </div>
         <p style="font-size: 0.85em; color: #555; margin-top: 0; margin-bottom: 15px;">
@@ -211,8 +211,7 @@
             <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">🚀 1. 文字起こし実行</button>
             <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
             <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
-            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">💬 3. QA・要望紐づけ</button>
-            <button onclick="runFinalProofreading()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 4. 最終議事録校正</button>
+            <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 3. 最終議事録作成</button>
         </div>
     </section>
 
@@ -955,7 +954,7 @@ ${termPromptSection}` }
 4. 「Q:」「A:」および、それに伴う「要望」や「指示」や「回答」には不要な「①」などの記号を勝手に振らないこと。
 5. 各タイトルの間には余分な空行を一切入れず、すぐ下に次の階層を続けること（ただし、独立した大項目の変わり目のみ1行の空行を挟む）。
 6. 会議内の「Q:」「A:」および、それに伴う「要望」や「指示」それに対する「回答」が発生する一連の流れがある場合、関係性を崩さず適切な位置にセットで配置すること。
-7. 金額があった場合は、「145万9,000円」のような漢字混じりの表現にはせず、必ず「1,459,000円」のようなカンマ付きの算用数字表現に統一すること。ただし1,000,000のように下三桁が000になる場合は1,000千円と表示する。
+7. 金額があった場合は、「145万9,000円」のような漢字混じりの表現にはせず、必ず「1,459,000円」のようなカンマ付きの算用数字表現に統一すること。ただし1,001,000のように下三桁が000になる場合は1,001千円、1,000,000のように下6桁が000000になる場合は1,百万円と表示する。
 8. 挨拶、前置き、解説、システム設定の言葉などは一切出力せず、純粋な議事録の文字列のみを出力すること。
 
 ${currentText}` }]
@@ -977,7 +976,7 @@ ${currentText}` }]
             }
         }
 
-        // --- 3. QA・要望を話題ごとに紐づけするボタン（更新版） ---
+        // --- 3. 最終議事録作成ボタン（旧3番・4番の統合版） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -993,14 +992,14 @@ ${currentText}` }]
             saveEditorState(); // 変更前の状態を保存
 
             try {
-                showStatus("質疑応答および要望・指示を、対応する各議題・話題の直下に紐づけて整理中");
+                showStatus("最終議事録を作成中（QA・要望紐づけおよびビジメ校正適用）");
 
                 const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の会議の議事録案を再構成してください。
+                            parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の会議の議事録案から最終的なビジネス議事録を作成してください。
 
 【整理の構成ルール】
 各「大項目」の中に、元の「中項目（（１）、（２）など）」をそのまま見出しとして残し、以下のフォーマットで整理してください。
@@ -1012,14 +1011,15 @@ ${currentText}` }]
 質疑応答 (Q&A): 該当するやり取りがあれば記載する（なければ省略）。
 要望・指示・回答・指摘: 該当する内容があれば具体的に漏れなく記載する（なければ省略）。
 ---
+
 【絶対厳守ルール】
 1. 中項目ごとのまとまり（文脈やテーマのつながり）が崩れないように配置すること。
 2. 要望・指示・回答などの具体的な内容（数値、固有名詞、対策内容など）を省略せず、元の文書の情報を詳細に保持すること。
-3. 金額があった場合は、「145万9,000円」のような漢字混じりの表現にはせず、必ず「1,459,000円」のようなカンマ付きの算用数字表現に統一すること。ただし1,001,000のように下三桁が000になる場合は1,001千円、1,000,000のように下6桁が000000になる場合は1,百万円と表示すると表示する。
-4. 余分な解説、挨拶、前置き、システム設定の言葉などは一切出力せず、純粋な議事録テキストの文字列のみを出力すること。
-5．表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
-6.トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
-7.出力制御：挨拶、前置き、解説などは一切含めず、純粋な議事録テキストの文字列のみを出力すること。
+3. 金額があった場合は、「145万9,000円」のような漢字混じりの表現にはせず、必ず「1,459,000円」のようなカンマ付きの算用数字表現に統一すること。ただし1,001,000のように下三桁が000になる場合は1,001千円、1,000,000のように下6桁が000000になる場合は1,百万円と表示する。
+4. 表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
+5. トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
+6. 不明確な情報の扱い：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
+7. 出力制御：挨拶、前置き、解説などは一切含めず、純粋な議事録テキストの文字列のみを出力すること。
 
 【テキストの折り返しに関する追加ルール】
 1. 1行あたり「全角最大46文字」を目安に改行を行ってください（厳密な文字数パディングよりも自然な読みやすさを優先します）。
@@ -1037,77 +1037,9 @@ ${currentText}` }]
                 updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
-                showStatus("✨ QA・要望の話題別紐づけが完了しました！");
+                showStatus("✨ 最終議事録の作成が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> Q&Aおよび要望・指示の話題別紐づけ整理が完了しました。</div>`;
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
-        }
-
-        // --- 最終議事録校正 ---
-        async function runFinalProofreading() {
-            const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-            const editor = document.getElementById('summaryEditor');
-            const history = document.getElementById('chatHistory');
-            const currentText = editor.value.trim();
-
-            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に校正するデータを作成してください。');
-                return;
-            }
-
-            saveEditorState(); // 変更前の状態を保存
-
-            try {
-                showStatus("ビジメ校正（階層ルール・カッコつき数字の上の改行ルール）による最終校正中");
-
-                const dataProof = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下の条件とフォーマットに従って、提供された会議データからビジネス議事録を作成（ビジメ校正）してください。
-
-### 1. 階層の番号・記号ルール
-文章の頭につける記号や番号は、以下の階層構造を必ず厳守すること。「大項目」「中項目」「小項目」という文字ラベルは一切出力せず、実際の会議の議題や内容に置き換えること。漢数字は絶対に使用せず、算用数字や丸数字を使用すること。
-また、カッコつきの数字（例：（１）、（２）など）の上の行には、必ず「1行の空行（空白行）」を入れること。
-
-１．[実際の議題名]
-
-（１）[具体的なトピック名]
-① [具体的な決定事項・意見]
-② [具体的な決定事項・意見]
-
-（２）[具体的なトピック名]
-２．[実際の議題名]
-
-### 2. 記述の基本方針と必須ルール
-- 表現形式：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とすること。
-- 金額表記：金額があった場合は、「145万9,000円」のような漢字混じりの表現にはせず、必ず「1,459,000円」のようなカンマ付きの算用数字表現に統一すること。ただし1,000,000のように下三桁が000になる場合は1,000千円と表示する。
-- 改行と空行のルール：カッコつき数字（（１）、（２）など）の前には必ず1行の空行を挟むこと。
-- ナンバー付き項目の書き方：ナンバー付き項目（①、②など）は、「① エア漏れ対策の推進：」のようなタイトル行（コロンまで）を1行目とし、必ずそこで改行を挟むこと。そして、2行目以降の本文の先頭には全角スペース（インデント）を1文字分入れてから本文を続けること。
-- Q&A・要望の扱い：テキスト内の各話題（大・中・小項目）の直下に配置されている“Q:”、“A:”およびそれに伴う“要望”、“指示”の内容や形式は、絶対に勝手に要約・削除せず、そのままの形で正確に維持して配置すること。
-- トーン：礼式やビジネス文書としての正確なトーンを意識した「ビジメ校正」を行うこと。
-- 不明確な情報の扱い：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
-- 出力制御：挨拶、前置き、解説などは一切含めず、純粋な議事録テキストの文字列のみを出力すること。
-
-現在の議事録案:
-${currentText}` }]
-                        }]
-                    })
-                });
-
-                if (dataProof.error) throw new Error(dataProof.error.message);
-                let proofedText = dataProof.candidates[0].content.parts[0].text.trim();
-                proofedText = wrapTextByLength(proofedText, 46);
-
-                editor.value = proofedText;
-                showStatus("✨ 最終議事録校正が完了しました！");
-                document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録校正（カッコつき数字の上の空行追加ルール適用）が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録の作成が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1139,7 +1071,7 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の文章は、製造会社の会議における社長などの発言です。この文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。金額が含まれる場合は「145万9,000円」のような漢字混じりにせず「1,459,000円」のようなカンマ付き表現（ただし下三桁が000の場合は1,000千円）にすること。書き換えた後の文字列のみを出力してください（前置きや解説は一切不要）。
+                            parts: [{ text: `以下の文章は、製造会社の会議における社長などの発言です。この文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。金額が含まれる場合は「145万9,000円」のような漢字混じりにせず「1,459,000円」のようなカンマ付き表現（ただし下三桁が000の場合は1,001千円などの規則に準ずる）にすること。書き換えた後の文字列のみを出力してください（前置きや解説は一切不要）。
 
 対象の文章:
 ${selectedText}` }]
@@ -1188,7 +1120,7 @@ ${selectedText}` }]
                             parts: [{ text: `あなたは議事録整形AIです。以下の現在の議事録案に対して、ユーザーからの修正指示を反映した【修正後の議事録の全文】のみを出力してください。
 【絶対厳守ルール】
 - “承知いたしました”、“以下のように修正しました”などの前置き、挨拶、会話的な返答は一切出力しないこと。
-- 金額があった場合は、“145万9,000円”のような漢字混じりの表現にはせず、必ず“1,459,000円”のようなカンマ付きの算用数字表現に統一すること（ただし下三桁が000の場合は1,000千円とする）。
+- 金額があった場合は、“145万9,000円”のような漢字混じりの表現にはせず、必ず“1,459,000円”のようなカンマ付きの算用数字表現に統一すること（ただし下三桁が000の場合は千円表記等に準ずる）。
 - 純粋に修正された議事録テキストの文字列のみを出力すること。
 - 46文字幅の折り返しを維持すること。
 
