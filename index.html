@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver3.0.3）</title>
+    <title>議事録くん！！（製造業会議・Ver3.0.4）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver3.0.3</span>
+        <span class="app-version">Ver3.0.4</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -183,17 +183,30 @@
             </div>
         </div>
 
-        <!-- 3段目：参加者（ワイドフル幅配置） -->
-        <div style="margin-top: 5px;">
-            <label>参加者（選択・追加・手入力）:</label>
+        <!-- 3段目：参加者1 -->
+        <div style="margin-top: 5px; margin-bottom: 12px;">
+            <label>参加者1（選択・追加・手入力）:</label>
             <div class="input-container" style="margin-bottom: 6px;">
-                <select id="participantPreset" onchange="applyParticipantPreset()">
-                    <option value="">-- 登録パターンから選択 --</option>
+                <select id="participant1Preset" onchange="applyParticipant1Preset()">
+                    <option value="">-- 登録パターン1から選択 --</option>
                 </select>
-                <button type="button" class="btn-success" onclick="saveCurrentAsParticipantPreset()">今のメンバーを登録</button>
-                <button type="button" class="btn-danger" onclick="deleteSelectedParticipantPreset()">🗑️ 削除</button>
+                <button type="button" class="btn-success" onclick="saveCurrentAsParticipant1Preset()">今のメンバー1を登録</button>
+                <button type="button" class="btn-danger" onclick="deleteSelectedParticipant1Preset()">🗑️ 削除</button>
             </div>
-            <input type="text" id="metaParticipants" value="" placeholder="例: 江山社長、寺林常務、渡邊常務、大河原取締役 または 直接入力">
+            <input type="text" id="metaParticipants1" value="" placeholder="例: 江山社長、寺林常務 または 直接入力">
+        </div>
+
+        <!-- 4段目：参加者2 -->
+        <div style="margin-top: 5px;">
+            <label>参加者2（選択・追加・手入力）:</label>
+            <div class="input-container" style="margin-bottom: 6px;">
+                <select id="participant2Preset" onchange="applyParticipant2Preset()">
+                    <option value="">-- 登録パターン2から選択 --</option>
+                </select>
+                <button type="button" class="btn-success" onclick="saveCurrentAsParticipant2Preset()">今のメンバー2を登録</button>
+                <button type="button" class="btn-danger" onclick="deleteSelectedParticipant2Preset()">🗑️ 削除</button>
+            </div>
+            <input type="text" id="metaParticipants2" value="" placeholder="例: 渡邊常務、大河原取締役 または 直接入力">
         </div>
     </section>
 
@@ -258,7 +271,7 @@
                 <button type="button" class="btn-danger" onclick="deleteSelectedFormatTemplate()">🗑️ 選択中のフォーマットを削除</button>
             </div>
         </div>
-        <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。（差し込みタグ: {{会議名}}, {{日時}}, {{場所}}, {{参加者}}, {{書記}}, {{本文}}）</p>
+        <p style="font-size: 0.85em; color: #666;">※ 登録したWordファイルのレイアウト（中央揃え・フォント・枠線等）を完全に維持したまま出力されます。（差し込みタグ: {{会議名}}, {{日時}}, {{場所}}, {{参加者1}}, {{参加者2}}, {{書記}}, {{本文}}）</p>
         <div>
             <button class="btn-success" onclick="downloadWordDocument()" style="width: 100%; height: 44px; font-size: 1.05em;">💾 ステップ4：元のレイアウトを維持してWordダウンロード</button>
         </div>
@@ -476,15 +489,16 @@
             if (select.value) input.value = select.value;
         }
 
-        const PART_STORAGE_KEY = 'minutes_participant_presets';
-        function getParticipants() {
-            const saved = localStorage.getItem(PART_STORAGE_KEY);
+        // 参加者1プリセット管理
+        const PART1_STORAGE_KEY = 'minutes_participant1_presets';
+        function getParticipants1() {
+            const saved = localStorage.getItem(PART1_STORAGE_KEY);
             return saved ? JSON.parse(saved) : [];
         }
-        function loadParticipantsToSelect() {
-            const select = document.getElementById('participantPreset');
-            const items = getParticipants();
-            select.innerHTML = '<option value="">-- 登録パターンから選択 --</option>';
+        function loadParticipants1ToSelect() {
+            const select = document.getElementById('participant1Preset');
+            const items = getParticipants1();
+            select.innerHTML = '<option value="">-- 登録パターン1から選択 --</option>';
             items.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item;
@@ -492,34 +506,82 @@
                 select.appendChild(option);
             });
         }
-        function saveCurrentAsParticipantPreset() {
-            const currentVal = document.getElementById('metaParticipants').value.trim();
-            if (!currentVal) { alert('参加者欄が空です。'); return; }
-            const items = getParticipants();
+        function saveCurrentAsParticipant1Preset() {
+            const currentVal = document.getElementById('metaParticipants1').value.trim();
+            if (!currentVal) { alert('参加者1欄が空です。'); return; }
+            const items = getParticipants1();
             if (!items.includes(currentVal)) {
                 items.push(currentVal);
-                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
-                loadParticipantsToSelect();
-                alert(`「${currentVal}」を参加者パターンとして記憶しました！`);
+                localStorage.setItem(PART1_STORAGE_KEY, JSON.stringify(items));
+                loadParticipants1ToSelect();
+                alert(`「${currentVal}」を参加者パターン1として記憶しました！`);
             } else {
-                alert('このメンバー構成はすでに登録されています。');
+                alert('このメンバー構成1はすでに登録されています。');
             }
         }
-        function deleteSelectedParticipantPreset() {
-            const select = document.getElementById('participantPreset');
+        function deleteSelectedParticipant1Preset() {
+            const select = document.getElementById('participant1Preset');
             const val = select.value;
-            if (!val) { alert('削除する参加者パターンを選択してください。'); return; }
+            if (!val) { alert('削除する参加者パターン1を選択してください。'); return; }
             if (confirm(`「${val}」を登録データから削除しますか？`)) {
-                let items = getParticipants();
+                let items = getParticipants1();
                 items = items.filter(i => i !== val);
-                localStorage.setItem(PART_STORAGE_KEY, JSON.stringify(items));
-                loadParticipantsToSelect();
+                localStorage.setItem(PART1_STORAGE_KEY, JSON.stringify(items));
+                loadParticipants1ToSelect();
                 alert('削除しました。');
             }
         }
-        function applyParticipantPreset() {
-            const select = document.getElementById('participantPreset');
-            const input = document.getElementById('metaParticipants');
+        function applyParticipant1Preset() {
+            const select = document.getElementById('participant1Preset');
+            const input = document.getElementById('metaParticipants1');
+            if (select.value) input.value = select.value;
+        }
+
+        // 参加者2プリセット管理
+        const PART2_STORAGE_KEY = 'minutes_participant2_presets';
+        function getParticipants2() {
+            const saved = localStorage.getItem(PART2_STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        }
+        function loadParticipants2ToSelect() {
+            const select = document.getElementById('participant2Preset');
+            const items = getParticipants2();
+            select.innerHTML = '<option value="">-- 登録パターン2から選択 --</option>';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
+        }
+        function saveCurrentAsParticipant2Preset() {
+            const currentVal = document.getElementById('metaParticipants2').value.trim();
+            if (!currentVal) { alert('参加者2欄が空です。'); return; }
+            const items = getParticipants2();
+            if (!items.includes(currentVal)) {
+                items.push(currentVal);
+                localStorage.setItem(PART2_STORAGE_KEY, JSON.stringify(items));
+                loadParticipants2ToSelect();
+                alert(`「${currentVal}」を参加者パターン2として記憶しました！`);
+            } else {
+                alert('このメンバー構成2はすでに登録されています。');
+            }
+        }
+        function deleteSelectedParticipant2Preset() {
+            const select = document.getElementById('participant2Preset');
+            const val = select.value;
+            if (!val) { alert('削除する参加者パターン2を選択してください。'); return; }
+            if (confirm(`「${val}」を登録データから削除しますか？`)) {
+                let items = getParticipants2();
+                items = items.filter(i => i !== val);
+                localStorage.setItem(PART2_STORAGE_KEY, JSON.stringify(items));
+                loadParticipants2ToSelect();
+                alert('削除しました。');
+            }
+        }
+        function applyParticipant2Preset() {
+            const select = document.getElementById('participant2Preset');
+            const input = document.getElementById('metaParticipants2');
             if (select.value) input.value = select.value;
         }
 
@@ -621,7 +683,8 @@
 
         window.onload = function() {
             loadMeetingNamesToSelect();
-            loadParticipantsToSelect();
+            loadParticipants1ToSelect();
+            loadParticipants2ToSelect();
             loadLocationsToSelect();
             loadFormatsToSelect();
             loadCustomTermsToList();
@@ -882,7 +945,7 @@
             }
         }
 
-        // --- 3. 最終議事録作成ボタン（API通信を2回に分ける2段構えの実装） ---
+        // --- 3. 最終議事録作成ボタン（2段構えの実装） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -914,12 +977,12 @@
 大項目名
 
 中項目名
-　概要: 
-　　小項目（①、②など）の内容を踏まえ、何が起きているか、現状や数値を整理して記述する。
-　質疑応答 (Q&A): 
-　　該当するやり取りがあれば記載する（なければ省略）。
-　要望・指示・回答・指摘: 
-　　該当する内容があれば具体的に漏れなく記載する（なければ省略）。
+ 概要: 
+  小項目（①、②など）の内容を踏まえ、何が起きているか、現状や数値を整理して記述する。
+ 質疑応答 (Q&A): 
+  該当するやり取りがあれば記載する（なければ省略）。
+ 要望・指示・回答・指摘: 
+  該当する内容があれば具体的に漏れなく記載する（なければ省略）。
 ---
 
 【絶対厳守ルール】
@@ -967,7 +1030,7 @@ ${generatedText}` }]
                 editor.value = finalFormattedText;
                 showStatus("✨ 最終議事録の作成と折り返し整形が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 2段階の処理（生成＋文脈配慮の折り返し整形）を経て最終議事録の作成が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 2段階の処理を経て最終議事録の作成が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1071,7 +1134,8 @@ ${generatedText}` }]
             const meetingName = document.getElementById('metaMeetingName').value;
             const dt = document.getElementById('metaDateTime').value;
             const loc = document.getElementById('metaLocation').value;
-            const parts = document.getElementById('metaParticipants').value;
+            const parts1 = document.getElementById('metaParticipants1').value;
+            const parts2 = document.getElementById('metaParticipants2').value;
             const sec = document.getElementById('metaSecretary').value;
             let content = document.getElementById('summaryEditor').value;
 
@@ -1106,7 +1170,8 @@ ${generatedText}` }]
                     日: dt,
                     日時: dt,
                     場所: loc,
-                    参加者: parts,
+                    参加者1: parts1,
+                    参加者2: parts2,
                     書記: sec,
                     本文: content,
                     要約: content
