@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver3.0.0）</title>
+    <title>議事録くん！！（製造業会議・Ver3.0.3）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver3.0.0</span>
+        <span class="app-version">Ver3.0.3</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -141,7 +141,6 @@
             </div>
         </details>
         
-        <!-- 【ご要望反映レイアウト】ご提示いただいた画像デザイン通りの配置 -->
         <div class="form-row">
             <!-- 1段目左：会議名 -->
             <div class="form-group">
@@ -220,7 +219,7 @@
         <h2>③ AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
             <div class="pane">
-                <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅）:</label>
+                <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅目安）:</label>
                 <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
             </div>
             <div class="pane" style="display: flex; flex-direction: column;">
@@ -232,7 +231,6 @@
                     <textarea id="chatInput" class="chat-input" placeholder="例: 製造工程や品質に関する用語の補足を追加して&#10;（Shift+Enter等で改行可能）"></textarea>
                     <button id="sendBtn" class="btn-primary" onclick="sendChatMessage()" style="height: 90px;">送信</button>
                 </div>
-                <!-- 「送信」と「戻す」の間に配置された選択範囲の厳粛表現変換ボタン ＆ 戻す・進むボタン -->
                 <div style="display: flex; flex-direction: column; gap: 5px;">
                     <button type="button" class="btn-primary" onclick="convertSelectedTextToSolemn()" style="width: 100%; height: 36px; font-size: 0.9em;">✨ 選択範囲を厳粛な表現に変換</button>
                     <button type="button" class="btn-warning" onclick="undoEditorState()" style="width: 100%; height: 36px; font-size: 0.9em;">↩️ 戻す</button>
@@ -268,40 +266,37 @@
 
     <script>
         let abortController = null;
-        let undoStack = []; // 変更前の履歴を保持するスタック
-        let redoStack = []; // やり直し（進む）用のスタック
+        let undoStack = [];
+        let redoStack = [];
 
-        // AI変換・修正の直前に現在の状態をUndoスタックに保存する関数
         function saveEditorState() {
             const editor = document.getElementById('summaryEditor');
             undoStack.push(editor.value);
-            redoStack = []; // 新しい操作が行われたらRedoスタックはクリア
+            redoStack = [];
         }
 
-        // 「戻す（Undo）」ボタンの処理
         function undoEditorState() {
             if (undoStack.length === 0) {
                 alert('戻すことのできる直前の変更履歴がありません。');
                 return;
             }
             const editor = document.getElementById('summaryEditor');
-            redoStack.push(editor.value); // 現在の状態をRedoスタックに退避
-            editor.value = undoStack.pop(); // 履歴から一つ取り出して復元
+            redoStack.push(editor.value);
+            editor.value = undoStack.pop();
             showStatus("↩️ 変更を元に戻しました");
             setTimeout(() => {
                 document.getElementById('statusMessage').textContent = "";
             }, 3000);
         }
 
-        // 「進む（Redo / 戻すのをキャンセル）」ボタンの処理
         function redoEditorState() {
             if (redoStack.length === 0) {
                 alert('やり直す（進む）ことのできる履歴がありません。');
                 return;
             }
             const editor = document.getElementById('summaryEditor');
-            undoStack.push(editor.value); // 現在の状態をUndoスタックに退避
-            editor.value = redoStack.pop(); // Redoスタックから取り出して復元
+            undoStack.push(editor.value);
+            editor.value = redoStack.pop();
             showStatus("🔄 戻す操作をキャンセルしました（進みました）");
             setTimeout(() => {
                 document.getElementById('statusMessage').textContent = "";
@@ -320,54 +315,7 @@
             }
         }
 
-        // --- スマート折り返し関数（46文字幅・タイトル改行＆インデント対応） ---
-        function wrapTextByLength(str, maxLen = 46) {
-            if (!str) return "";
-            const paragraphs = str.split(/\n\s*\n/);
-            let resultParagraphs = [];
-
-            for (let para of paragraphs) {
-                const rawLines = para.split('\n');
-                let processedLines = [];
-
-                for (let line of rawLines) {
-                    let trimmed = line.trim();
-                    if (!trimmed) continue;
-
-                    let currentLine = trimmed;
-                    while (currentLine.length > maxLen) {
-                        let subStr = currentLine.substring(0, maxLen + 1);
-                        let lastSpace = Math.max(
-                            subStr.lastIndexOf('、'), 
-                            subStr.lastIndexOf('。'), 
-                            subStr.lastIndexOf(' '), 
-                            subStr.lastIndexOf('（'),
-                            subStr.lastIndexOf('）'),
-                            subStr.lastIndexOf('・'),
-                            subStr.lastIndexOf('：'),
-                            subStr.lastIndexOf('て'),
-                            subStr.lastIndexOf('に'),
-                            subStr.lastIndexOf('を'),
-                            subStr.lastIndexOf('は'),
-                            subStr.lastIndexOf('が'),
-                            subStr.lastIndexOf('の')
-                        );
-                        
-                        let breakIdx = (lastSpace > maxLen * 0.4) ? (lastSpace + 1) : maxLen;
-                        
-                        processedLines.push(currentLine.substring(0, breakIdx).trim());
-                        currentLine = currentLine.substring(breakIdx).trim();
-                    }
-                    if (currentLine.length > 0) {
-                        processedLines.push(currentLine);
-                    }
-                }
-                resultParagraphs.push(processedLines.join('\n'));
-            }
-            return resultParagraphs.join('\n\n');
-        }
-
-        // --- 専門用語辞書の管理（LocalStorage保存 & Excel入出力） ---
+        // --- 専門用語辞書の管理 ---
         const TERM_STORAGE_KEY = 'minutes_custom_terms';
         function getCustomTerms() {
             const saved = localStorage.getItem(TERM_STORAGE_KEY);
@@ -413,19 +361,14 @@
             loadCustomTermsToList();
         }
 
-        // --- 専門用語のExcelエクスポート（書き出し） ---
         function exportTermsToExcel() {
             const terms = getCustomTerms();
             if (terms.length === 0) {
                 alert('書き出す専門用語が登録されていません。');
                 return;
             }
-            const data = [
-                ["表示名", "読み・発音"]
-            ];
-            terms.forEach(t => {
-                data.push([t.display, t.reading]);
-            });
+            const data = [["表示名", "読み・発音"]];
+            terms.forEach(t => { data.push([t.display, t.reading]); });
 
             const worksheet = XLSX.utils.aoa_to_sheet(data);
             const workbook = XLSX.utils.book_new();
@@ -438,7 +381,6 @@
             XLSX.writeFile(workbook, `専門用語辞書_${yyyy}${mm}${dd}.xlsx`);
         }
 
-        // --- 専門用語のExcelインポート（読み込み） ---
         function importTermsFromExcel() {
             const fileInput = document.getElementById('termExcelFile');
             const file = fileInput.files[0];
@@ -480,13 +422,13 @@
                     alert(`Excelファイルから ${addedCount} 件の専門用語を新しく登録しました！`);
                 } catch (err) {
                     console.error("Excel読み込みエラー:", err);
-                    alert('Excelファイルの読み込みに失敗しました。正しいフォーマットか確認してください。');
+                    alert('Excelファイルの読み込みに失敗しました。');
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // --- 会議名プリセット管理 ---
+        // --- プリセット管理 ---
         const MEETING_NAME_STORAGE_KEY = 'minutes_meeting_name_presets';
         function getMeetingNames() {
             const saved = localStorage.getItem(MEETING_NAME_STORAGE_KEY);
@@ -534,7 +476,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // --- 参加者プリセット管理 ---
         const PART_STORAGE_KEY = 'minutes_participant_presets';
         function getParticipants() {
             const saved = localStorage.getItem(PART_STORAGE_KEY);
@@ -582,7 +523,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // --- 場所プリセット管理 ---
         const LOC_STORAGE_KEY = 'minutes_location_presets';
         function getLocations() {
             const saved = localStorage.getItem(LOC_STORAGE_KEY);
@@ -630,7 +570,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // --- フォーマットテンプレート管理 ---
         const FORMAT_STORAGE_KEY = 'minutes_format_templates_base64';
         function getFormats() {
             const saved = localStorage.getItem(FORMAT_STORAGE_KEY);
@@ -712,20 +651,17 @@
             const sampleRate = buffer.sampleRate;
             const format = 1;
             const bitDepth = 16;
-            
             const samples = buffer.length;
             const blockAlign = (numOfChan * bitDepth) / 8;
             const byteRate = sampleRate * blockAlign;
             const dataSize = samples * blockAlign;
             const bufferSize = 44 + dataSize;
-            
             const arrayBuffer = new ArrayBuffer(bufferSize);
             const view = new DataView(arrayBuffer);
             
             writeString(view, 0, 'RIFF');
             view.setUint32(4, 36 + dataSize, true);
             writeString(view, 8, 'WAVE');
-            
             writeString(view, 12, 'fmt ');
             view.setUint32(16, 16, true);
             view.setUint16(20, format, true);
@@ -734,7 +670,6 @@
             view.setUint32(28, byteRate, true);
             view.setUint16(32, blockAlign, true);
             view.setUint16(34, bitDepth, true);
-            
             writeString(view, 36, 'data');
             view.setUint32(40, dataSize, true);
             
@@ -752,7 +687,6 @@
                     offset += 2;
                 }
             }
-            
             return new Blob([arrayBuffer], { type: 'audio/wav' });
         }
 
@@ -810,7 +744,7 @@
             }
         }
 
-        // --- ステップ1 & 2：音声分割・文字起こし（型番・番号の聞き取り間違い抑制対策適用） ---
+        // --- ステップ1 & 2：音声分割・文字起こし ---
         async function runSteps1And2() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -830,8 +764,8 @@
             const terms = getCustomTerms();
             let termPromptSection = "";
             if (terms.length > 0) {
-                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声や、それに似た響きの部分は、必ず「${t.display}」という正式な専門用語・型番・番号に変換すること`).join('\n');
-                termPromptSection = `\n【専門用語・固有名詞・型番の絶対置換ルール】\n以下の製造業専門用語辞書に合致する音声、またはそれに類似する読み方の音声は、必ず指定の正式な表記（例: 「No.10号」など）に置き換えること。勝手に別の熟語や数字（中15など）に変換することを【絶対に禁止】します：\n${termListStr}\n`;
+                let termListStr = terms.map(t => `- 「${t.reading}」と聞こえる音声は、必ず「${t.display}」に変換すること`).join('\n');
+                termPromptSection = `\n【専門用語の絶対置換ルール】\n${termListStr}\n`;
             }
 
             try {
@@ -841,7 +775,7 @@
                 const decodedAudio = await audioCtx.decodeAudioData(arrayBuffer);
 
                 const duration = decodedAudio.duration;
-                const chunkDuration = 900; // 15分
+                const chunkDuration = 900;
                 const chunks = [];
 
                 for (let start = 0; start < duration; start += chunkDuration) {
@@ -860,8 +794,7 @@
                         }
                     }
 
-                    const wavBlob = audioBufferToWav(slicedBuffer);
-                    chunks.push(wavBlob);
+                    chunks.push(audioBufferToWav(slicedBuffer));
                 }
 
                 showStatus(`音声を全 ${chunks.length} パートに分割しました。文字起こしを開始します`);
@@ -869,7 +802,6 @@
 
                 for (let i = 0; i < chunks.length; i++) {
                     if (abortController.signal.aborted) throw new Error('AbortError');
-
                     const partNum = i + 1;
                     showStatus(`【パート ${partNum} / ${chunks.length}】 テキスト化処理中`);
                     
@@ -881,29 +813,20 @@
                             contents: [{
                                 parts: [
                                     audioPart,
-                                    { text: `【指示】あなたは機械的な音声トランスクライバー（文字起こし専用機）です。これは製造会社の会議音声のパート${partNum}です。
-【厳格な文字起こしルール（型番・番号の聞き取り間違い防止）】
-1. 聞き取った音声の内容を、一言一句そのまま忠実に文字起こししてください。
-2. 「No.～号」や製品型番、部番などの固有名詞・数字の読み間違い（例: 「なんばーじゅうごう」を「中15」や別の言葉に勝手に変換するエラー）を【絶対に起こさないこと】。音の響きが似ていても、専門用語辞書にある表現や、製造現場で使われる型番・番号として正確に文字起こしすること。
-3. 文脈から意味を推測して言葉を勝手に補ったり、言い換えたり、要約したりすることは【絶対に禁止】です。
-4. 聞き取りづらい部分や曖昧な部分は、勝手に推測せず必ず「【音声不明瞭・聞き取り不能】」と正直に記載すること。
-5. 挨拶や前置きの言葉などは一切出力せず、純粋な文字起こしテキストの文字列のみを出力すること。
-${termPromptSection}` }
+                                    { text: `【指示】あなたは機械的な音声トランスクライバーです。会議音声のパート${partNum}です。一言一句忠実に文字起こししてください。挨拶や前置きは不要です。${termPromptSection}` }
                                 ]
                             }]
                         })
                     });
 
                     if (dataRes.error) throw new Error(dataRes.error.message);
-                    const partText = dataRes.candidates[0].content.parts[0].text.trim();
-                    accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + partText;
-
+                    accumulatedRawText += `\n\n--- パート ${partNum} ---\n` + dataRes.candidates[0].content.parts[0].text.trim();
                     editor.value = accumulatedRawText;
                 }
 
-                showStatus("✨ 文字起こしが完了しました！上のボタン2「時系列ブロック統合」を押してください。");
+                showStatus("✨ 文字起こしが完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 文字起こしが完了しました。次の「時系列ブロック統合」ボタンを押してください。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 文字起こしが完了しました。</div>`;
             } catch (e) {
                 if (e.message === 'AbortError' || e.name === 'AbortError') {
                     showStatus("🛑 処理を途中で中止しました。");
@@ -918,65 +841,48 @@ ${termPromptSection}` }
             }
         }
 
-        // --- ステップ3：時系列ブロック統合・整形（2番ボタン） ---
+        // --- ステップ2：時系列ブロック統合 ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に文字起こしを実行するか、テキストを貼り付けてください。');
+                alert('先にテキストデータを準備してください。');
                 return;
             }
 
-            saveEditorState(); // 変更前の状態を保存
+            saveEditorState();
 
             try {
-                showStatus("時系列ブロックを統合し、Q&Aや要望の関係性を維持しながら文脈を整理中");
+                showStatus("時系列ブロックを統合し文脈を整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。
-
-【絶対厳守ルール】
-1. 時系列の順番（タイムライン・流れ）を絶対に崩さないこと。
-2. 「大項目」「中項目」「小項目」といった説明用のラベル文字自体は絶対に本文に出力せず、実際の会議の「議題名」「トピック名」「具体的な内容」に置き換えて記述すること。
-3. 階層構造の番号・記号は以下の形式を厳守すること（漢数字は使用せず、算用数字や丸数字を使用すること）：
-   - １．[実際の議題名]
-   - （１）[実際のトピック名]
-   - ① [実際の決定事項や意見]
-4. 「Q:」「A:」および、それに伴う「要望」や「指示」や「回答」には不要な「①」などの記号を勝手に振らないこと。
-5. 各タイトルの間には余分な空行を一切入れず、すぐ下に次の階層を続けること（ただし、独立した大項目の変わり目のみ1行の空行を挟む）。
-6. 会議内の「Q:」「A:」および、それに伴う「要望」や「指示」それに対する「回答」が発生する一連の流れがある場合、関係性を崩さず適切な位置にセットで配置すること。
-7. 金額があった場合は、「145万9,000円」のような漢字混じりの表現にはせず、必ず「1,459,000円」のようなカンマ付きの算用数字表現に統一すること。ただし1,001,000のように下三桁が000になる場合は1,001千円、1,000,000のように下6桁が000000になる場合は1,百万円と表示する。
-8. 挨拶、前置き、解説、システム設定の言葉などは一切出力せず、純粋な議事録の文字列のみを出力すること。
-
-${currentText}` }]
+                            parts: [{ text: `以下のテキストデータを統合し、製造会社の会議用の議事録形式にまとめてください。時系列の順番を崩さず、金額表現は「1,459,000円」形式（1,000,000円は「1,000千円」、1,000,000円以上の6桁が0の場合は「1,百万円」など）に統一してください。解説や挨拶は一切出力せず、文字列のみを出力してください。\n\n${currentText}` }]
                         }]
                     })
                 });
 
                 if (dataFinal.error) throw new Error(dataFinal.error.message);
                 let finalResult = dataFinal.candidates[0].content.parts[0].text.trim();
-                finalResult = wrapTextByLength(finalResult, 46);
 
                 editor.value = finalResult;
-                showStatus("✨ 時系列ブロックの統合と文脈整理が完了しました！");
+                showStatus("✨ 時系列ブロックの統合が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合と階層構造の整理が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- 3. 最終議事録作成ボタン（旧3番・4番の統合版） ---
+        // --- 3. 最終議事録作成ボタン（API通信を2回に分ける2段構えの実装） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -989,12 +895,13 @@ ${currentText}` }]
                 return;
             }
 
-            saveEditorState(); // 変更前の状態を保存
+            saveEditorState();
 
             try {
-                showStatus("最終議事録を作成中（QA・要望紐づけおよびビジメ校正適用）");
+                // 【ステップ 1】：構成ルール・ビジメ校正による生成
+                showStatus("[1/2] 最終議事録の構成・文脈整理中");
 
-                const dataQA = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                const dataStep1 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1021,25 +928,43 @@ ${currentText}` }]
 6. 不明確な情報の扱い：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
 7. 出力制御：挨拶、前置き、解説などは一切含めず、純粋な議事録テキストの文字列のみを出力すること。
 
-【テキストの折り返しに関する追加ルール】
-1. 1行あたり「全角最大46文字」を目安に改行を行ってください（厳密な文字数パディングよりも自然な読みやすさを優先します）。
-2. 「炬燵」のような熟語や固有名詞、数字と単位（例:「10トン」「2,000円」など）の途中で改行して分断することは絶対に避けてください。
-3. 改行を行う場合は、文節の区切りや、句読点（、。）の直後、またはスペースの位置など、意味のまとまり（文脈）を崩さない自然な位置で行ってください。
-
 現在の議事録案:
 ${currentText}` }]
                         }]
                     })
                 });
 
-                if (dataQA.error) throw new Error(dataQA.error.message);
-                let updatedText = dataQA.candidates[0].content.parts[0].text.trim();
-                updatedText = wrapTextByLength(updatedText, 46);
+                if (dataStep1.error) throw new Error(dataStep1.error.message);
+                let generatedText = dataStep1.candidates[0].content.parts[0].text.trim();
 
-                editor.value = updatedText;
-                showStatus("✨ 最終議事録の作成が完了しました！");
+                // 【ステップ 2】：折り返しルールの適用（2回目のAPI呼び出し）
+                showStatus("[2/2] テキストの折り返しルール（46文字目安・文脈配慮）を適用中");
+
+                const dataStep2 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `あなたはテキスト整形およびレイアウトの専門AIです。以下の議事録テキストに対して、【テキストの折り返しに関する追加ルール】を厳格に適用して整形し、整形後の文字列のみを出力してください（挨拶や前置きは一切不要）。
+
+【テキストの折り返しに関する追加ルール】
+1. 1行あたり「全角最大46文字」を目安に改行を行ってください（厳密な文字数パディングよりも自然な読みやすさを優先します）。
+2. 「炬燵」のような熟語や固有名詞、数字と単位（例:「10トン」「2,000円」など）の途中で改行して分断することは絶対に避けてください。
+3. 改行を行う場合は、文節の区切りや、句読点（、。）の直後、またはスペースの位置など、意味のまとまり（文脈）を崩さない自然な位置で行ってください。
+
+対象の議事録テキスト:
+${generatedText}` }]
+                        }]
+                    })
+                });
+
+                if (dataStep2.error) throw new Error(dataStep2.error.message);
+                let finalFormattedText = dataStep2.candidates[0].content.parts[0].text.trim();
+
+                editor.value = finalFormattedText;
+                showStatus("✨ 最終議事録の作成と折り返し整形が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 最終議事録の作成が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 2段階の処理（生成＋文脈配慮の折り返し整形）を経て最終議事録の作成が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1057,11 +982,11 @@ ${currentText}` }]
             const selectedText = editor.value.substring(start, end).trim();
 
             if (!selectedText) {
-                alert('エディター内で厳粛な表現に変えたい文章（社長の言葉など）をマウスでドラッグして選択してください。');
+                alert('エディター内で厳粛な表現に変えたい文章をマウスでドラッグして選択してください。');
                 return;
             }
 
-            saveEditorState(); // 変更前の状態を保存
+            saveEditorState();
 
             try {
                 showStatus("選択された文章を厳粛なビジネス表現に変換中");
@@ -1071,22 +996,18 @@ ${currentText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `以下の文章は、製造会社の会議における社長などの発言です。この文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。金額が含まれる場合は「145万9,000円」のような漢字混じりにせず「1,459,000円」のようなカンマ付き表現（ただし下三桁が000の場合は1,001千円などの規則に準ずる）にすること。書き換えた後の文字列のみを出力してください（前置きや解説は一切不要）。
-
-対象の文章:
-${selectedText}` }]
+                            parts: [{ text: `以下の文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。金額が含まれる場合はカンマ付き算用数字表現に統一すること。書き換えた後の文字列のみを出力してください。\n\n${selectedText}` }]
                         }]
                     })
                 });
 
                 if (data.error) throw new Error(data.error.message);
                 let solemnText = data.candidates[0].content.parts[0].text.trim();
-                solemnText = wrapTextByLength(solemnText, 46);
 
                 const fullText = editor.value;
                 editor.value = fullText.substring(0, start) + solemnText + fullText.substring(end);
 
-                showStatus("✨ 選択範囲の厳粛な表現への変換が完了しました！");
+                showStatus("✨ 選択範囲の変換が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
             } catch (e) {
                 showStatus("❌ エラー発生", true);
@@ -1109,7 +1030,7 @@ ${selectedText}` }]
             input.value = '';
             history.scrollTop = history.scrollHeight;
 
-            saveEditorState(); // 変更前の状態を保存
+            saveEditorState();
 
             try {
                 const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -1117,25 +1038,13 @@ ${selectedText}` }]
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: `あなたは議事録整形AIです。以下の現在の議事録案に対して、ユーザーからの修正指示を反映した【修正後の議事録の全文】のみを出力してください。
-【絶対厳守ルール】
-- “承知いたしました”、“以下のように修正しました”などの前置き、挨拶、会話的な返答は一切出力しないこと。
-- 金額があった場合は、“145万9,000円”のような漢字混じりの表現にはせず、必ず“1,459,000円”のようなカンマ付きの算用数字表現に統一すること（ただし下三桁が000の場合は千円表記等に準ずる）。
-- 純粋に修正された議事録テキストの文字列のみを出力すること。
-- 46文字幅の折り返しを維持すること。
-
-現在の議事録案:
-${editor.value}
-
-修正指示:
-${userText}` }]
+                            parts: [{ text: `あなたは議事録整形AIです。以下の現在の議事録案に対して、ユーザーからの修正指示を反映した【修正後の議事録の全文】のみを出力してください。前置きや挨拶は一切出力せず、文字列のみを出力してください。\n\n現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}` }]
                         }]
                     })
                 });
 
                 if (data.error) throw new Error(data.error.message);
                 let updatedText = data.candidates[0].content.parts[0].text.trim();
-                updatedText = wrapTextByLength(updatedText, 46);
 
                 editor.value = updatedText;
                 history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、再整形しました。</div>`;
@@ -1185,10 +1094,7 @@ ${userText}` }]
                 const doc = new DocxLib(zip, {
                     paragraphLoop: true,
                     linebreaks: true,
-                    delimiters: {
-                        start: '{{',
-                        end: '}}'
-                    }
+                    delimiters: { start: '{{', end: '}}' }
                 });
 
                 doc.render({
