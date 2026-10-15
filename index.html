@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver3.0.5）</title>
+    <title>議事録くん！！（製造業会議・Ver3.0.6）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver3.0.5</span>
+        <span class="app-version">Ver3.0.6</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -1044,7 +1044,7 @@ ${currentText}` }]
      - 単語や熟語（例：「炬燵」等の固有名詞、「プラス」などの独立した意味を持つ単語）
      - 数字と単位の組み合わせ（例：「＋71トン」「2,000円」「109トン/日」など、数字と単位がセットで1行に収まるようにする）
 3. 【第3優先（任意・必要に応じて）】
-   - 第1・第2優先を満たした上で、必要に応じて文節の区切りやスペースの位置を考慮してください（※ただし、46文字のベースを極端に無視したり、第1・第2優先を破ることは絶対に禁止です）
+   - 第1・第2優先を満たした上で、必要に応じて文節の区切りやスペースの位置を考慮してください（※ただし、46文字のベースを極端に無視したり、第1・第2優先を破ることは絶対に禁止です）。
 
 対象の議事録テキスト:
 ${generatedText}` }]
@@ -1210,10 +1210,10 @@ ${generatedText}` }]
                     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 });
 
-                // ファイル名の生成ルール: yyyymmdd_議事録_{{会議名}}
+                // ファイル名の生成ルール: 議事録_{{会議名}}_yyyymmdd
                 const dateClean = dt.replace(/[/:\s]/g, '');
                 const meetingClean = (meetingName || '会議').trim();
-                const fileName = `${dateClean}_議事録_${meetingClean}.docx`;
+                const fileName = `議事録_${meetingClean}_${dateClean}.docx`;
 
                 const url = window.URL.createObjectURL(out);
                 const a = document.createElement('a');
