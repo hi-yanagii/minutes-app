@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver3.0.17）</title>
+    <title>議事録くん！！（製造業会議・Ver4.0.0）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver3.0.17</span>
+        <span class="app-version">Ver4.0.0</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -217,12 +217,12 @@
             <div id="statusMessage"></div>
         </div>
         <p style="font-size: 0.85em; color: #555; margin-top: 0; margin-bottom: 15px;">
-            ※ 製造会社の会議を前提に処理を行います。下のボタンを順番に押して編集を進めてください。
+            ※ 製造会社の会議を前提に処理を行います。下のボタンを順番に押して編集を進めてください。（※時系列ブロック統合ボタンは、選択範囲がある場合は「講評」として保持します）
         </p>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
             <button id="processBtn1" class="btn-success" onclick="runSteps1And2()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">🚀 1. 文字起こし実行</button>
             <button id="cancelBtn" class="btn-danger" onclick="cancelProcessing()" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em; display: none;">🛑 中止する</button>
-            <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合</button>
+            <button onclick="runStep3Integration()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">⚙️ 2. 時系列ブロック統合（講評抽出対応）</button>
             <button onclick="runStep3QACollection()" class="btn-success" style="flex: 1; min-width: 200px; height: 44px; font-size: 0.9em;">✨ 3. 最終議事録作成</button>
         </div>
     </section>
@@ -281,6 +281,7 @@
         let abortController = null;
         let undoStack = [];
         let redoStack = [];
+        let savedKouhyouText = ""; // 講評として抽出・保持する変数
 
         function saveEditorState() {
             const editor = document.getElementById('summaryEditor');
@@ -489,7 +490,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // 参加者1プリセット管理
         const PART1_STORAGE_KEY = 'minutes_participant1_presets';
         function getParticipants1() {
             const saved = localStorage.getItem(PART1_STORAGE_KEY);
@@ -537,7 +537,6 @@
             if (select.value) input.value = select.value;
         }
 
-        // 参加者2プリセット管理
         const PART2_STORAGE_KEY = 'minutes_participant2_presets';
         function getParticipants2() {
             const saved = localStorage.getItem(PART2_STORAGE_KEY);
@@ -911,12 +910,16 @@
             }
         }
 
-        // --- ステップ2：時系列ブロック統合 ---
+        // --- ステップ2：時系列ブロック統合 ＆ 講評抽出 ---
         async function runStep3Integration() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
+            
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end).trim();
             const currentText = editor.value.trim();
 
             if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
@@ -927,6 +930,28 @@
             saveEditorState();
 
             try {
+                // 選択範囲がある場合は、それを「講評」として厳格な言葉遣いに変換・保持する
+                if (selectedText) {
+                    showStatus("選択された講評範囲を厳格なビジネス表現に変換・保持中");
+
+                    const dataKouhyou = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の文章は会議の最後に述べられた講評（総括）です。要約せず、一言一句のニュアンスをそのまま活かしつつ、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。金額が含まれる場合はカンマ付き算用数字表現に統一すること。余計な記号や文字（「や」「-」など）は含めず、書き換えた後の文字列のみを出力してください。\n\n${selectedText}` }]
+                            }]
+                        })
+                    });
+
+                    if (dataKouhyou.error) throw new Error(dataKouhyou.error.message);
+                    savedKouhyouText = dataKouhyou.candidates[0].content.parts[0].text.trim();
+                    
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 選択された講評範囲を厳格な表現に変換し、最終議事録の最後尾配置用に保持しました。</div>`;
+                } else {
+                    savedKouhyouText = ""; // 選択がない場合はクリア
+                }
+
                 showStatus("時系列ブロックを統合し文脈を整理中");
 
                 const dataFinal = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -962,14 +987,16 @@ ${currentText}` }]
                 editor.value = finalResult;
                 showStatus("✨ 時系列ブロックの統合が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。</div>`;
+                if (!selectedText) {
+                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 時系列ブロックの統合が完了しました。</div>`;
+                }
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
             }
         }
 
-        // --- 3. 最終議事録作成ボタン（2段構えの実装 - Ver3.0.12） ---
+        // --- 3. 最終議事録作成ボタン（講評の最後尾配置＆2段構えの実装） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
@@ -1020,7 +1047,7 @@ ${currentText}` }]
 3. 文体・表現：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とし、礼式を重んじた「ビジメ校正」を行うこと。また、指示要望等の文末は「～推進のこと。」などの名詞化（体言止め）形式で統一すること。
 4. 情報の不確実性：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
 5. 表記の簡潔さ：余計な記号や文字（「や」「-」など）を含めず、すっきりと見やすいレイアウトに整えること。
-6. 4. 「Q:」「A:」および、それに伴う細かなやり取りは、簡潔に要約して文脈やテーマごとにまとめること。
+6. 「Q:」「A:」および、それに伴う細かなやり取りは、簡潔に要約して文脈やテーマごとにまとめること。
 7．【指示要望】の内容が無いときは表示をしない。
 
 現在の議事録案:
@@ -1031,6 +1058,11 @@ ${currentText}` }]
 
                 if (dataStep1.error) throw new Error(dataStep1.error.message);
                 let generatedText = dataStep1.candidates[0].content.parts[0].text.trim();
+
+                // もし保持されている講評データがあれば、一番最後に付与する
+                if (savedKouhyouText) {
+                    generatedText += `\n\n【会議講評】\n${savedKouhyouText}`;
+                }
 
                 // 【ステップ 2】：折り返しルールの適用（2回目のAPI呼び出し）
                 showStatus("[2/2] テキストの折り返しルール（46文字目安・文脈配慮）を適用中");
@@ -1052,7 +1084,7 @@ ${currentText}` }]
 3. 分断の禁止と構造の維持
     - 単語、熟語、固有名詞、数字と単位の組み合わせ（例：3mm、0.1%、870千円など）、および「Q:」「A:」のラベルとそれに続く言葉は、絶対に途中で改行して分断しないこと。
     - ①、１．、（１）、Q:、A: などのインデントや階層構造を美しく維持すること。
-   
+    
 対象の議事録テキスト:
 ${generatedText}` }]
                         }]
@@ -1065,7 +1097,7 @@ ${generatedText}` }]
                 editor.value = finalFormattedText;
                 showStatus("✨ 最終議事録の作成と折り返し整形が完了しました！");
                 document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 2段階の処理を経て最終議事録の作成が完了しました。</div>`;
+                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 2段階の処理を経て最終議事録（講評含む）の作成が完了しました。</div>`;
             } catch (e) {
                 showStatus("❌ エラー発生", true);
                 alert('エラー: ' + e.message);
@@ -1217,7 +1249,6 @@ ${generatedText}` }]
                     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 });
 
-                // ファイル名の生成ルール: 議事録_{{会議名}}_yyyymmdd
                 const dateClean = dt.replace(/[/:\s]/g, '');
                 const meetingClean = (meetingName || '会議').trim();
                 const fileName = `議事録_${meetingClean}_${dateClean}.docx`;
