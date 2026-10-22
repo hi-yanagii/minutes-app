@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>議事録くん！！（製造業会議・Ver4.0.0）</title>
+    <title>議事録くん！！（製造業会議・Ver4.0.1）</title>
     <!-- 安定性の高いjsDelivr CDNを使用 -->
     <script src="https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docxtemplater@3.45.0/build/docxtemplater.js"></script>
@@ -55,7 +55,7 @@
             height: 525px; 
             font-family: monospace; 
             resize: vertical; 
-            width: 46em; 
+            width: 45em; 
             box-sizing: content-box; 
         }
 
@@ -88,7 +88,7 @@
 
     <div class="header-container">
         <h1>議事録くん！！</h1>
-        <span class="app-version">Ver4.0.0</span>
+        <span class="app-version">Ver4.0.1</span>
     </div>
 
     <!-- ステップ1＆2：音声ファイルとメタデータ入力 -->
@@ -232,7 +232,7 @@
         <h2>③ AI対話による修正 & テキスト直接編集</h2>
         <div class="workspace">
             <div class="pane">
-                <label>テキスト・要約プレビュー（直接編集可能・全角46文字幅目安）:</label>
+                <label>テキスト・要約プレビュー（直接編集可能・全角45文字幅目安）:</label>
                 <textarea id="summaryEditor" class="editor">ここに処理結果が表示されます。チャットでAIに指示を出したり、直接書き換えることができます。</textarea>
             </div>
             <div class="pane" style="display: flex; flex-direction: column;">
@@ -996,277 +996,10 @@ ${currentText}` }]
             }
         }
 
-        // --- 3. 最終議事録作成ボタン（講評の最後尾配置＆2段構えの実装） ---
+        // --- 3. 最終議事録作成ボタン（講評の最後尾配置＆45文字統一・インデント対応） ---
         async function runStep3QACollection() {
             const apiKey = getApiKey();
             if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
             const editor = document.getElementById('summaryEditor');
             const history = document.getElementById('chatHistory');
-            const currentText = editor.value.trim();
-
-            if (!currentText || currentText.includes("ここに処理結果が表示されます")) {
-                alert('先に議事録データを準備してください。');
-                return;
-            }
-
-            saveEditorState();
-
-            try {
-                // 【ステップ 1】：構成ルール・ビジメ校正による生成（決定事項最上部配置＆Q&Aまとめ＆インデント整形対応）
-                showStatus("[1/2] 最終議事録の構成・文脈整理中");
-
-                const dataStep1 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `あなたは製造業の議事録専門の整形AIです。以下の会議の議事録案から最終的なビジネス議事録を作成してください。
-
-【出力フォーマットおよび構造ルール（絶対厳守）】
-会議の成果物は、必ず以下の構造と記号・ラベルの形式に沿って出力すること。挨拶、前置き、解説などは一切含めず、純粋な議事録テキストの文字列のみを出力すること。
-
-【決定事項】
-① [決定事項の内容1]
-② [決定事項の内容2]
-
-１．[実際の議題名・大項目]
-（１）[実際のトピック名・中項目]
-【概要】
-① [概要や背景に関するポイント1]
-② [概要や背景に関するポイント2]
-【Q&A】
-  Q：[質問や確認事項の内容]
-  A：[回答や見解の内容]
-【指示要望】
-① [出された指示や要望の内容1（※文末は必ず「～推進のこと。」などの名詞化・体言止めで終わらせること）]
-② [出された指示や要望の内容2]
-
-【詳細な内容・表記ルール】
-1. 詳細情報の保持と整理：要望、指示、回答などの具体的な内容（数値、固有名詞、対策内容など）を省略せず詳細に保持すること。ただし、重複する細かなやり取りはすっきりと一つにまとめて整理すること。
-2. 金額表現の統一：すべてカンマ付きの算用数字（例：「1,459,000円」）を基本とする。下3桁が「000」の場合は「千円」単位（例：「1,001千円」）、下6桁が「000000」の場合は「百万円」単位（例：「1百万円」）に換算して表記すること。
-3. 文体・表現：表現は「名詞化」「体言止め」「常体表現（だ・である調）」を基本とし、礼式を重んじた「ビジメ校正」を行うこと。また、指示要望等の文末は「～推進のこと。」などの名詞化（体言止め）形式で統一すること。
-4. 情報の不確実性：情報源や事実関係が不確定な箇所については、憶測で補わず「不明」と明確に記載すること。
-5. 表記の簡潔さ：余計な記号や文字（「や」「-」など）を含めず、すっきりと見やすいレイアウトに整えること。
-6. 「Q:」「A:」および、それに伴う細かなやり取りは、簡潔に要約して文脈やテーマごとにまとめること。
-7．【指示要望】の内容が無いときは表示をしない。
-
-現在の議事録案:
-${currentText}` }]
-                        }]
-                    })
-                });
-
-                if (dataStep1.error) throw new Error(dataStep1.error.message);
-                let generatedText = dataStep1.candidates[0].content.parts[0].text.trim();
-
-                // もし保持されている講評データがあれば、一番最後に付与する
-                if (savedKouhyouText) {
-                    generatedText += `\n\n【会議講評】\n${savedKouhyouText}`;
-                }
-
-                // 【ステップ 2】：折り返しルールの適用（2回目のAPI呼び出し）
-                showStatus("[2/2] テキストの折り返しルール（46文字目安・文脈配慮）を適用中");
-
-                const dataStep2 = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `あなたはテキストのレイアウトおよび折り返し処理のエキスパートです。以下の議事録テキストに対して、【テキストの折り返しに関する追加ルール】を厳格に適用して整形し、整形後の文字列のみを出力してください（挨拶や前置きは一切不要、余計な記号や文字「や」「-」なども含めないこと）。
-
-【テキストの折り返しおよび改行に関する絶対ルール】
-1. 第1優先（全角換算による厳格な文字数制限）
-    - 空白や記号、スペースも含めて、1行あたりの文字数をカウントする際は「全角文字を1文字、半角の英数字や記号を0.5文字」として換算し、合計で絶対に最大46文字の幅（全角換算）を上限とすること。
-    - 46文字を超える場合は、必ずその上限に達する手前（または自然な文節）で強制的に改行を行うこと。
-2. 【不要な途中改行の厳禁】
-    - 1行の文字数が全角45文字の上限に達していない場合、途中で勝手に改行や折り返しを行ってはならない。文字数が上限未満であれば、文節の途中であっても1行として繋げて出力すること。
-    - 文字数が全角45文字を超える場合にのみ、その上限に達する手前（または自然な文節の区切り）で強制改行を行うこと。
-3. 分断の禁止と構造の維持
-    - 単語、熟語、固有名詞、数字と単位の組み合わせ（例：3mm、0.1%、870千円など）、および「Q:」「A:」のラベルとそれに続く言葉は、絶対に途中で改行して分断しないこと。
-    - ①、１．、（１）、Q:、A: などのインデントや階層構造を美しく維持すること。
-    
-対象の議事録テキスト:
-${generatedText}` }]
-                        }]
-                    })
-                });
-
-                if (dataStep2.error) throw new Error(dataStep2.error.message);
-                let finalFormattedText = dataStep2.candidates[0].content.parts[0].text.trim();
-
-                editor.value = finalFormattedText;
-                showStatus("✨ 最終議事録の作成と折り返し整形が完了しました！");
-                document.getElementById('statusMessage').classList.remove('loading-dots');
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 2段階の処理を経て最終議事録（講評含む）の作成が完了しました。</div>`;
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
-        }
-
-        // --- 選択範囲を厳粛な表現に変換する機能 ---
-        async function convertSelectedTextToSolemn() {
-            const apiKey = getApiKey();
-            if (!apiKey) { alert('Gemini APIキーを入力してください。'); return; }
-            
-            const editor = document.getElementById('summaryEditor');
-            const start = editor.selectionStart;
-            const end = editor.selectionEnd;
-            const selectedText = editor.value.substring(start, end).trim();
-
-            if (!selectedText) {
-                alert('エディター内で厳粛な表現に変えたい文章をマウスでドラッグして選択してください。');
-                return;
-            }
-
-            saveEditorState();
-
-            try {
-                showStatus("選択された文章を厳粛なビジネス表現に変換中");
-
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `以下の文章を、礼式を重んじたより厳粛で格式の高いビジネス表現（常体表現・名詞化・体言止めを基本とするビジメ校正）に書き換えてください。金額が含まれる場合はカンマ付き算用数字表現に統一すること。余計な記号や文字（「や」「-」など）は含めず、書き換えた後の文字列のみを出力してください。\n\n${selectedText}` }]
-                        }]
-                    })
-                });
-
-                if (data.error) throw new Error(data.error.message);
-                let solemnText = data.candidates[0].content.parts[0].text.trim();
-
-                const fullText = editor.value;
-                editor.value = fullText.substring(0, start) + solemnText + fullText.substring(end);
-
-                showStatus("✨ 選択範囲の変換が完了しました！");
-                document.getElementById('statusMessage').classList.remove('loading-dots');
-            } catch (e) {
-                showStatus("❌ エラー発生", true);
-                alert('エラー: ' + e.message);
-            }
-        }
-
-        // --- AIチャット修正機能 ---
-        async function sendChatMessage() {
-            const apiKey = getApiKey();
-            if(!apiKey) { alert('APIキーを入力してください。'); return; }
-
-            const input = document.getElementById('chatInput');
-            const history = document.getElementById('chatHistory');
-            const editor = document.getElementById('summaryEditor');
-            
-            if(!input.value.trim()) return;
-            const userText = input.value;
-            history.innerHTML += `<div class="chat-msg user"><b>[あなた]:</b><br>${userText.replace(/\n/g, '<br>')}</div>`;
-            input.value = '';
-            history.scrollTop = history.scrollHeight;
-
-            saveEditorState();
-
-            try {
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `あなたは議事録整形AIです。以下の現在の議事録案に対して、ユーザーからの修正指示を反映した【修正後の議事録の全文】のみを出力してください。前置きや挨拶は一切出力せず、余計な記号や文字（「や」「-」など）を含めず、文字列のみを出力してください。\n\n現在の議事録案:\n${editor.value}\n\n修正指示:\n${userText}` }]
-                        }]
-                    })
-                });
-
-                if (data.error) throw new Error(data.error.message);
-                let updatedText = data.candidates[0].content.parts[0].text.trim();
-
-                editor.value = updatedText;
-                history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> 指示に合わせて修正を行い、再整形しました。</div>`;
-                history.scrollTop = history.scrollHeight;
-            } catch (e) {
-                if (e.message !== 'AbortError') {
-                    history.innerHTML += `<div class="chat-msg ai"><b>[AI]:</b> エラー: ${e.message}</div>`;
-                }
-            }
-        }
-
-        // --- ステップ4：Wordダウンロード機能 ---
-        async function downloadWordDocument() {
-            const formatName = document.getElementById('formatTemplate').value;
-            if (!formatName) { alert('出力フォーマットが選択されていません。'); return; }
-
-            const formats = getFormats();
-            const base64Data = formats[formatName];
-            if (!base64Data) { alert('テンプレートデータが見つかりません。'); return; }
-
-            const meetingName = document.getElementById('metaMeetingName').value;
-            const dt = document.getElementById('metaDateTime').value;
-            const loc = document.getElementById('metaLocation').value;
-            const parts1 = document.getElementById('metaParticipants1').value;
-            const parts2 = document.getElementById('metaParticipants2').value;
-            const sec = document.getElementById('metaSecretary').value;
-            let content = document.getElementById('summaryEditor').value;
-
-            content = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-            try {
-                const ZipLib = window.PizZip || window.Pizzip || window.pizzip;
-                const DocxLib = window.docxtemplater;
-
-                if (!ZipLib || !DocxLib) {
-                    throw new Error("PizZipまたはDocxtemplaterライブラリが読み込まれていません。");
-                }
-
-                const base64String = base64Data.split(',')[1];
-                const binaryString = atob(base64String);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-
-                const zip = new ZipLib(bytes.buffer);
-                const doc = new DocxLib(zip, {
-                    paragraphLoop: true,
-                    linebreaks: true,
-                    delimiters: { start: '{{', end: '}}' }
-                });
-
-                doc.render({
-                    会議名: meetingName,
-                    会議: meetingName,
-                    日: dt,
-                    日時: dt,
-                    場所: loc,
-                    参加者1: parts1,
-                    参加者2: parts2,
-                    書記: sec,
-                    本文: content,
-                    要約: content
-                });
-
-                const out = doc.getZip().generate({
-                    type: "blob",
-                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                });
-
-                const dateClean = dt.replace(/[/:\s]/g, '');
-                const meetingClean = (meetingName || '会議').trim();
-                const fileName = `議事録_${meetingClean}_${dateClean}.docx`;
-
-                const url = window.URL.createObjectURL(out);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                alert('Wordファイルのダウンロードが完了しました！');
-            } catch (err) {
-                console.error("Word生成エラー:", err);
-                alert('Wordファイルの生成に失敗しました: ' + (err.message || JSON.stringify(err)));
-            }
-        }
-    </script>
-</body>
-</html>
+            const currentText =
